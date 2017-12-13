@@ -100,7 +100,57 @@ class TestTransaction(TestCase):
             data_csv = ','.join(data)
             self.assertRaises(ValueError, Transaction.from_csv, data_csv)
 
+    def test_from_dict(self):
+        """
+        Test Transaction.from_dict constructor
+        """
+        some_data_list = ["12/11/2017",
+                     "Some Transaction Description",
+                     "Some Transaction Description Original with Fancy Chars (*&*^*%&^!@#",
+                     "20.50",
+                     "debit",
+                     "Groceries",
+                     "Barclaycard",
+                     "labels",
+                     "some notes with stuff 91287312987393 17239812(@*&#!(*&#(!@#@#%&(!*&#"]
+        data_map = {
+            "date": 0,
+            "description": 1,
+            "description_original": 2,
+            "amount": 3,
+            "transaction_type": 4,
+            "category": 5,
+            "account": 6,
+            "labels": 7,
+            "notes": 8,
+        }
+        some_data_dict = {
+                        "date": some_data_list[0],
+                        "description": some_data_list[1],
+                        "description_original": some_data_list[2],
+                        "amount": some_data_list[3],
+                        "transaction_type": some_data_list[4],
+                        "category": some_data_list[5],
+                        "account": some_data_list[6],
+                        "labels": some_data_list[7],
+                        "notes": some_data_list[8],
+                    }
 
+        some_correct_results = [datetime.datetime(2017, 12, 11),
+                                "Some Transaction Description",
+                                "Some Transaction Description Original with Fancy Chars (*&*^*%&^!@#",
+                                20.50,
+                                "debit",
+                                "Groceries",
+                                "Barclaycard",
+                                "labels",
+                                "some notes with stuff 91287312987393 17239812(@*&#!(*&#(!@#@#%&(!*&#"]
+
+        trx_dict = Transaction.from_dict(some_data_dict)
+        trx_csv = Transaction.from_csv(",".join(some_data_list))
+        for attr, val in some_data_dict.items():
+            self.assertEqual(getattr(trx_dict, attr), some_correct_results[data_map[attr]])
+            self.assertEqual(getattr(trx_dict, attr), getattr(trx_csv, attr))
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,23 +2,6 @@ from unittest import TestCase
 from Transactions import Transactions
 from Transaction import Transaction
 
-def make_trx():
-    """
-    Helper function to make a transaction for testing (there should be better ways to do this...)
-    I should probably have something like this in test_Transaction and import it here?
-    :return:
-    """
-    csv = ",".join(["12/11/2017",
-                     "Some Transaction Description",
-                     "Some Transaction Description Original with Fancy Chars (*&*^*%&^!@#",
-                     "20.50",
-                     "debit",
-                     "Groceries",
-                     "Barclaycard",
-                     "labels",
-                     "some notes with stuff 91287312987393 17239812(@*&#!(*&#(!@#@#%&(!*&#"])
-    trx = Transaction.from_csv(csv)
-    return trx
 
 class TestTransactions(TestCase):
     """
@@ -28,7 +11,7 @@ class TestTransactions(TestCase):
         """
         Test code for the add_transaction feature of Transactions class
         """
-        trx = make_trx()
+        trx = Transaction.sample_trx()
         trxs = Transactions()
         len_orig = len(trxs.transactions)
         trxs.add_transaction(trx)
@@ -43,5 +26,24 @@ class TestTransactions(TestCase):
         trxs = Transactions()
 
         for i in range(1, 11):
-            trxs.add_transaction(make_trx())
+            trxs.add_transaction(Transaction.sample_trx())
             self.assertEqual(len(trxs), i)
+
+    def test_from_csv(self):
+        """
+        Test Transactions.from_csv
+
+        Currently only validates that the method did not raise an exception and resulted in the right number of
+        transactions.  Does not validate the content (at least not more than the properties of Transaction do)
+
+        How do I make a test case for something that loads a bunch of stuff that depends on a file?  If I dynamically
+        try to predict the result, that is just as flawed as the method I'm testing.  But if I do manual checks, those
+        are either incomplete or tedious...
+        """
+        sample_csv = "./sample_transactions.csv"
+        with open(sample_csv, 'r') as fin:
+            sample_csv_list = fin.readlines()
+        sample_csv_len = len(sample_csv_list) - 1
+
+        trxs = Transactions.from_csv(sample_csv)
+        self.assertEqual(len(trxs), sample_csv_len)
