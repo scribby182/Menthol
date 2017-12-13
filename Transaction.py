@@ -1,5 +1,9 @@
+import datetime
+
 # FEATURE: Add properties of setters/getters for all attributes.  Validate on set (eg: make sure date is a datetime format or can be converted to one, etc.)
 # FEATURE: Add Unit Tests
+
+TRANSACTION_DATE_FORMAT = "%m/%d/%Y"
 
 class Transaction(object):
     """
@@ -20,7 +24,7 @@ class Transaction(object):
         self.labels = None
         self.notes = None
 
-        self.data_map =     {
+        self.default_data_map =     {
                                 "date": 0,
                                 "description": 1,
                                 "description_original": 2,
@@ -58,12 +62,20 @@ class Transaction(object):
         """
 
         trx = cls()
-        if data_map is not None:
-            trx.data_map = data_map
+        if data_map is None:
+            data_map = dict(trx.default_data_map)
 
-        csv_list = csv_string.split(',').strip()
+        # Split and strip any extra whitespace
+        csv_list = [text.strip() for text in csv_string.split(',')]
 
+        # Parse and reformat results before storing
+        # Date
+        csv_list[data_map['date']] = datetime.datetime.strptime(csv_list[data_map['date']], TRANSACTION_DATE_FORMAT)
+        # Amount
+        csv_list[data_map['amount']] = float(csv_list[data_map['amount']])
+
+        # Store attributes in proper spots
         for attr, col in data_map.items():
-            setattr(trx, attr, csv_list[col])
+                setattr(trx, attr, csv_list[col])
 
         return trx
