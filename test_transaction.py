@@ -91,6 +91,16 @@ class TestTransaction(TestCase):
             self.assertEqual(getattr(trx, attr), some_misordered_correct_results[col],
                              msg="Failed csv case {0} on attr {1} (match against correct results)".format(name, attr))
 
+        some_bad_data = {}
+        bad = list(some_data)
+        bad[0] = 'not a date'
+        some_bad_data['wrong_date_format'] = bad
+
+        for name, data in some_bad_data.items():
+            data_csv = ','.join(data)
+            self.assertRaises(ValueError, Transaction.from_csv, data_csv)
+
+
 
 if __name__ == "__main__":
     unittest.main()
