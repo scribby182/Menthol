@@ -1,4 +1,6 @@
 import datetime
+import random
+import string
 
 # FEATURE: Add properties of setters/getters for all attributes.  Validate on set (eg: make sure date is a datetime format or can be converted to one, etc.)
 # FEATURE: Add Unit Tests
@@ -35,6 +37,51 @@ class Transaction(object):
                                 "labels": 7,
                                 "notes": 8,
                             }
+
+    def __str__(self):
+        signed_amount = self.amount
+        if self.transaction_type == 'debit':
+            signed_amount = signed_amount * -1
+        string = "{0} | ${1} | {2} | {3}".format(self.description, signed_amount, self.category, self.account)
+        return string
+
+    @classmethod
+    def sample_trx(cls, **kwargs):
+        """
+        Returns a sample transaction with semi-random date.
+
+        Random data can be overridden through input arguemnts
+
+        :return:
+        """
+        trx_desc = random.choice(string.ascii_uppercase)
+        defaults = {
+            "date": "{0}/{1}/{2}".format(random.randint(1, 12), random.randint(1, 28), random.randint(1985, 2016)),
+            "description": "Trx {0}".format(trx_desc),
+            "description_original": "Trx {0} Long".format(trx_desc),
+            "amount": random.random() * 100.0,
+            "transaction_type": "{0}".format(random.choice(['debit', 'credit'])),
+            "category": "{0}".format(random.choice(['Groceries', 'Mortgage'])),
+            "account": "{0}".format(random.choice(['Barclay', 'Amex'])),
+            "labels": "label1",
+            "notes": "A note",
+        }
+        defaults.update(**kwargs)
+        return Transaction.from_dict(defaults)
+
+
+    @classmethod
+    def from_dict(cls, data_dict):
+        """
+        Initialize and return a transaction from a dictionary specifying all data called for in self.default_data_map
+
+        :param data_dict:
+        :return:
+        """
+        trx = cls()
+        for k in trx.default_data_map.keys():
+            setattr(trx, k, data_dict[k])
+        return trx
 
     @classmethod
     def from_csv(cls, csv_string, data_map=None):
@@ -113,4 +160,4 @@ class Transaction(object):
 
         :return: None
         """
-        self._amount = float(value)
+        self._amount = round(float(value), 2)
