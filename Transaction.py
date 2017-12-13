@@ -14,17 +14,17 @@ class Transaction(object):
         """
         Initialize an empty Transaction instance.
         """
-        self.date = None
+        self._date = None
         self.description = None
         self.description_original = None
-        self.amount = None
+        self._amount = None
         self.transaction_type = None
         self.category = None
         self.account = None
         self.labels = None
         self.notes = None
 
-        self.default_data_map =     {
+        self.default_data_map = {
                                 "date": 0,
                                 "description": 1,
                                 "description_original": 2,
@@ -68,14 +68,49 @@ class Transaction(object):
         # Split and strip any extra whitespace
         csv_list = [text.strip() for text in csv_string.split(',')]
 
-        # Parse and reformat results before storing
-        # Date
-        csv_list[data_map['date']] = datetime.datetime.strptime(csv_list[data_map['date']], TRANSACTION_DATE_FORMAT)
-        # Amount
-        csv_list[data_map['amount']] = float(csv_list[data_map['amount']])
-
         # Store attributes in proper spots
         for attr, col in data_map.items():
                 setattr(trx, attr, csv_list[col])
 
         return trx
+
+    @property
+    def date(self):
+        """
+        Getter for date property.
+
+        :return: Datetime instance
+        """
+        return self._date
+
+    @date.setter
+    def date(self, value):
+        """
+        Setter for date property.
+
+        :return: None
+        """
+        # Parse (If necessary) and store date
+        if not isinstance(value, datetime.datetime):
+            value = datetime.datetime.strptime(value, TRANSACTION_DATE_FORMAT)
+        # If we get here, we have a datetime.datetime object
+        self._date = value  # No need to make a copy - datetime objects are immutable
+
+    @property
+    def amount(self):
+        """
+        Getter for amount property.
+
+        :return: float
+        """
+        return self._amount
+
+
+    @amount.setter
+    def amount(self, value):
+        """
+        Setter for amount property.
+
+        :return: None
+        """
+        self._amount = float(value)
