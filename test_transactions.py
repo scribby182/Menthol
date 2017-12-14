@@ -2,7 +2,6 @@ from unittest import TestCase
 from Transactions import Transactions
 from Transaction import Transaction
 
-
 class TestTransactions(TestCase):
     """
     Test code for the Transactions class
@@ -40,10 +39,41 @@ class TestTransactions(TestCase):
         try to predict the result, that is just as flawed as the method I'm testing.  But if I do manual checks, those
         are either incomplete or tedious...
         """
-        sample_csv = "./sample_transactions.csv"
-        with open(sample_csv, 'r') as fin:
-            sample_csv_list = fin.readlines()
-        sample_csv_len = len(sample_csv_list) - 1
+        sample_csvs = \
+            [
+                "./test_transactions_sample_transactions.csv",
+                "./test_transactions_sample_transactions_empty.csv",
+                "./test_transactions_sample_transactions_with_spaces.csv",
+                "./test_transactions_sample_transactions_no_ending_space.csv",
+            ]
 
-        trxs = Transactions.from_csv(sample_csv)
-        self.assertEqual(len(trxs), sample_csv_len)
+        for sample_csv in sample_csvs:
+            with open(sample_csv, 'r') as fin:
+                sample_csv_list = fin.readlines()
+
+            # Remove Header
+            sample_csv_list.pop(0)
+            # Remove empty lines
+            sample_csv_list = [x for x in sample_csv_list if x.strip()]
+            sample_csv_len = len(sample_csv_list)
+
+            trxs = Transactions.from_csv(sample_csv)
+            self.assertEqual(len(trxs), sample_csv_len, msg="Test failed for {0}".format(sample_csv))
+
+    def test_to_csv(self):
+        """
+        Test Transactions.to_csv by creating data, exporting to csv, then reimporting.
+        :return:
+        """
+        trx_list = [Transaction.sample_trx() for i in range(10)]
+        trxs = Transactions()
+        for trx in trx_list:
+            trxs.add_transaction(trx)
+
+        temp_outfile = "test_transactions_to_csv.csv"
+        trxs.to_csv(temp_outfile)
+
+        # Load csv back as new transactions file
+        trxs_loaded = trxs.from_csv(temp_outfile)
+        for i in range(len(trxs)):
+            self.assertEqual(trxs.transactions[i], trxs_loaded.transactions[i])

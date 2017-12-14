@@ -5,12 +5,23 @@ import string
 # FEATURE: Add properties of setters/getters for all attributes.  Validate on set (eg: make sure date is a datetime format or can be converted to one, etc.)
 # FEATURE: Add Unit Tests
 
-TRANSACTION_DATE_FORMAT = "%m/%d/%Y"
 
 class Transaction(object):
     """
     Class to store a single transaction record.
     """
+    MINT_CSV_DATE_FORMAT = "%m/%d/%Y"
+    DEFAULT_DATA_MAP = {
+        "date": 0,
+        "description": 1,
+        "description_original": 2,
+        "amount": 3,
+        "transaction_type": 4,
+        "category": 5,
+        "account": 6,
+        "labels": 7,
+        "notes": 8,
+    }
 
     def __init__(self):
         """
@@ -26,24 +37,31 @@ class Transaction(object):
         self.labels = None
         self.notes = None
 
-        self.default_data_map = {
-                                "date": 0,
-                                "description": 1,
-                                "description_original": 2,
-                                "amount": 3,
-                                "transaction_type": 4,
-                                "category": 5,
-                                "account": 6,
-                                "labels": 7,
-                                "notes": 8,
-                            }
-
     def __str__(self):
         signed_amount = self.amount
         if self.transaction_type == 'debit':
             signed_amount = signed_amount * -1
-        string = "{0} | ${1} | {2} | {3}".format(self.description, signed_amount, self.category, self.account)
-        return string
+        ret = "{4} | {0} | ${1} | {2} | {3}".format(self.description, signed_amount, self.category, self.account,
+                                                       self.date.strftime(self.MINT_CSV_DATE_FORMAT))
+        return ret
+
+    def __eq__(self, other):
+        """
+        Compare self to another object to determine if they are equal.
+
+        :param other: Another object (must be Transaction-like to be equal)
+        :return: Boolean of whether the objects are equal
+        """
+        comparible_attributes = ["date", "description", "description_original", "amount", "transaction_type",
+                                 "category", "account", "labels", "notes"]
+        equal = True
+        for attr in comparible_attributes:
+            if getattr(self, attr) == getattr(other, attr):
+                continue
+            else:
+                equal = False
+                break
+        return equal
 
     @classmethod
     def sample_trx(cls, **kwargs):
@@ -69,17 +87,53 @@ class Transaction(object):
         defaults.update(**kwargs)
         return Transaction.from_dict(defaults)
 
+    @classmethod
+    def header(cls, separator=', ', data_map=None):
+        """
+        Returns a csv string in the format of a standard csv header file.
+
+        :param data_map: Map of the order data in which data will be returned.
+        :return: A csv-formatted string
+        """
+        if data_map is None:
+            data_map = cls.DEFAULT_DATA_MAP
+
+        header_as_list = [None] * len(data_map)
+        for k, col in data_map.items():
+            header_as_list[col] = k
+        return separator.join(header_as_list)
+
+    def to_csv(self, separator=', ', data_map=None):
+        """
+        Convert the transaction to a csv formatted string.
+
+        :param data_map: Map of the order data in which data will be returned.
+        :return: A csv-formatted string
+        """
+        if data_map is None:
+            data_map = Transaction.DEFAULT_DATA_MAP
+
+        trx_as_list = [None] * len(data_map)
+        for k, col in data_map.items():
+            trx_as_list[col] = getattr(self, k)
+            # Catch any special cases
+            if k == 'date':
+                trx_as_list[col] = trx_as_list[col].strftime(Transaction.MINT_CSV_DATE_FORMAT)
+            if k == 'amount':
+                trx_as_list[col] = str(trx_as_list[col])
+
+        return separator.join(trx_as_list)
 
     @classmethod
     def from_dict(cls, data_dict):
         """
-        Initialize and return a transaction from a dictionary specifying all data called for in self.default_data_map
+        Return a Transaction initialized from a dict containing data for all fields in Transaction.DEFAULT_DATA_MAP
 
         :param data_dict:
         :return:
         """
         trx = cls()
-        for k in trx.default_data_map.keys():
+        for k in Transaction.DEFAULT_DATA_MAP.keys():
             setattr(trx, k, data_dict[k])
         return trx
 
@@ -110,7 +164,7 @@ class Transaction(object):
 
         trx = cls()
         if data_map is None:
-            data_map = dict(trx.default_data_map)
+            data_map = dict(Transaction.DEFAULT_DATA_MAP)
 
         # Split and strip any extra whitespace
         csv_list = [text.strip() for text in csv_string.split(',')]
@@ -139,7 +193,7 @@ class Transaction(object):
         """
         # Parse (If necessary) and store date
         if not isinstance(value, datetime.datetime):
-            value = datetime.datetime.strptime(value, TRANSACTION_DATE_FORMAT)
+            value = datetime.datetime.strptime(value, Transaction.MINT_CSV_DATE_FORMAT)
         # If we get here, we have a datetime.datetime object
         self._date = value  # No need to make a copy - datetime objects are immutable
 
@@ -151,7 +205,6 @@ class Transaction(object):
         :return: float
         """
         return self._amount
-
 
     @amount.setter
     def amount(self, value):

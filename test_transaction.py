@@ -1,6 +1,7 @@
 from unittest import TestCase
 from Transaction import Transaction
 import datetime
+import copy
 
 class TestTransaction(TestCase):
     def test_from_csv(self):
@@ -82,14 +83,10 @@ class TestTransaction(TestCase):
             some_misordered_data[col_misordered] = some_data[col_ordered]
             some_misordered_correct_results[col_misordered] = some_correct_results[col_ordered]
         misordered_csv = ",".join(some_misordered_data)
-        print('misordered: ')
-        print(misordered_csv)
         trx = Transaction.from_csv(misordered_csv, misordered_data_map)
         for attr, col in misordered_data_map.items():
-            print("running attr:", attr)
-            print("running col:", col)
             self.assertEqual(getattr(trx, attr), some_misordered_correct_results[col],
-                             msg="Failed csv case {0} on attr {1} (match against correct results)".format(name, attr))
+                             msg="Failed csv case {0} on attr {1} (match against correct results)".format("misordered", attr))
 
         some_bad_data = {}
         bad = list(some_data)
@@ -152,5 +149,34 @@ class TestTransaction(TestCase):
             self.assertEqual(getattr(trx_dict, attr), some_correct_results[data_map[attr]])
             self.assertEqual(getattr(trx_dict, attr), getattr(trx_csv, attr))
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_compare(self):
+        """
+        Test the Transaction.__eq__ method for comparing two Transaction instances
+        """
+        # Create some data
+        trx1 = Transaction.sample_trx()
+        trx1_copy = copy.deepcopy(trx1)
+        trx1_modified = copy.deepcopy(trx1)
+        trx1_modified.amount = trx1_modified.amount + 1.0
+        trx1_modified2 = copy.deepcopy(trx1)
+        trx1_modified2.notes = "SOME OTHER NOTE"
+        trx2 = Transaction.sample_trx()
+
+        # Test
+        self.assertEqual(trx1, trx1)
+        self.assertEqual(trx1, trx1_copy)
+        self.assertNotEqual(trx1, trx1_modified)
+        self.assertNotEqual(trx1, trx1_modified2)
+        self.assertNotEqual(trx1, trx2)
+
+    def test_to_csv(self):
+        """
+        Test Transaction.to_csv() function
+
+        Validate by  creating a sample transaction, converting to csv, then making another Transaction with that csv
+        and comparing.
+        """
+        trx = Transaction.sample_trx()
+        csv = trx.to_csv()
+        trx_from_csv = Transaction.from_csv(csv)
+        self.assertEqual(trx, trx_from_csv)
