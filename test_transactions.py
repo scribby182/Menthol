@@ -123,6 +123,7 @@ class TestTransactions(TestCase):
             {'start': 4, 'end': 9},
             {'start': None, 'end': 9},
             {'start': 4, 'end': None},
+            {'start': None, 'end': None},
         ]
 
         for case in cases:
@@ -160,6 +161,16 @@ class TestTransactions(TestCase):
             print(trxs_slice)
             self.assertEqual(trxs_ref, trxs_slice, msg='Failed on case: {0}'.format(str(case)))
 
-            # TODO: Test Incremenet
-            # TODO: Test failure if dates out of order
-            # TODO: Test Copy vs view
+        # Test if slice is a copy of all Transactions
+        trxs_slice = trxs.slice_by_date(None, None, trx_as_copy=True)
+        trxs_slice.transactions[0].amount += 1
+        self.assertNotEqual(trxs, trxs_slice)
+
+        # Test if slice is a view of all Transactions
+        trxs_slice = trxs.slice_by_date(None, None, trx_as_copy=False)
+        trxs_slice.transactions[0].amount += 1
+        self.assertEqual(trxs, trxs_slice)
+
+        start = datetime.datetime.today()
+        end = start - datetime.timedelta(1)
+        self.assertRaises(ValueError, trxs.slice_by_date, start, end)

@@ -1,5 +1,7 @@
 from Transaction import Transaction
+import copy
 
+# FEATURE: Likely makes sense to store transactions as a Pandas dataframe, but that isn't so good for practice...
 
 class Transactions(object):
     """
@@ -78,10 +80,15 @@ class Transactions(object):
                             instances
         :return: A new Transactions object
         """
-        newtrxs = Transactions()
-
+        # Validate inputs
         if incremenet is not None:
             raise NotImplementedError
+
+        if start is not None and stop is not None:
+            if start > stop:
+                raise ValueError("start ({0}) must be before stop ({1})".format(start, stop))
+
+        newtrxs = Transactions()
 
         for trx in self.transactions:
             if start is not None:
@@ -93,6 +100,8 @@ class Transactions(object):
                 if trx.date > stop:
                     continue
             # If I get here, we're in scope!
+            if trx_as_copy:
+                trx = copy.deepcopy(trx)
             newtrxs.add_transaction(trx)
 
         return newtrxs
