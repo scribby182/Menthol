@@ -1,6 +1,8 @@
 from unittest import TestCase
 from Transactions import Transactions
 from Transaction import Transaction
+import datetime
+import copy
 
 class TestTransactions(TestCase):
     """
@@ -22,10 +24,8 @@ class TestTransactions(TestCase):
         """
         Test Transactions.__len__
         """
-        trxs = Transactions()
-
         for i in range(1, 11):
-            trxs.add_transaction(Transaction.sample_trx())
+            trxs = Transactions.sample_trxs(i)
             self.assertEqual(len(trxs), i)
 
     def test_from_csv(self):
@@ -65,10 +65,7 @@ class TestTransactions(TestCase):
         Test Transactions.to_csv by creating data, exporting to csv, then reimporting.
         :return:
         """
-        trx_list = [Transaction.sample_trx() for i in range(10)]
-        trxs = Transactions()
-        for trx in trx_list:
-            trxs.add_transaction(trx)
+        trxs = Transactions.sample_trxs(10)
 
         temp_outfile = "test_transactions_to_csv.csv"
         trxs.to_csv(temp_outfile)
@@ -77,3 +74,92 @@ class TestTransactions(TestCase):
         trxs_loaded = trxs.from_csv(temp_outfile)
         for i in range(len(trxs)):
             self.assertEqual(trxs.transactions[i], trxs_loaded.transactions[i])
+
+    def test_compare(self):
+        """
+        Test Transactions.__eq__()
+        """
+        trxs = Transactions.sample_trxs(10)
+
+        # Should be equal to itself
+        self.assertEqual(trxs, trxs)
+
+        # Should be equal to something made from all the same transactions
+        trxs_fake_copy = Transactions()
+        for trx in trxs.transactions:
+            trxs_fake_copy.add_transaction(trx)
+        self.assertEqual(trxs, trxs_fake_copy)
+
+        # Should be equal to a shallow copy
+        trxs_copy = copy.copy(trxs)
+        self.assertEqual(trxs, trxs_copy)
+
+        # Even after we change something
+        trxs_copy.transactions[0].amount += 1
+        self.assertEqual(trxs, trxs_copy)
+
+        # Should be equal to a deep copy
+        trxs_deepcopy = copy.deepcopy(trxs)
+        self.assertEqual(trxs, trxs_deepcopy)
+
+        # Shouldn't be equal if I change something about the deepcopy
+        trxs_deepcopy.transactions[0].amount += 1
+        self.assertNotEqual(trxs, trxs_deepcopy)
+
+    def test_slice_by_date(self):
+        """
+        Test Transactions.slice_by_date by slicing a sample Transactions object
+        """
+        # Make transactions, one for each month.
+        year = 2017
+        day = 1
+        trx_list = [Transaction.sample_trx(date = datetime.datetime(year, m, day)) for m in range(1,13)]
+
+        trxs = Transactions()
+        for trx in trx_list:
+            trxs.add_transaction(trx)
+
+        cases = [
+            {'start': 4, 'end': 9},
+            {'start': None, 'end': 9},
+            {'start': 4, 'end': None},
+        ]
+
+        for case in cases:
+            print("Checking case: ", case)
+            s = case['start']
+            e = case['end']
+
+            if s == None:
+                s = 1
+                s_datetime = None
+            else:
+                s = case['start']
+                s_datetime = datetime.datetime(year, s, day)
+
+            if e == None:
+                e = 12
+                e_datetime = None
+            else:
+                e = case['end']
+                e_datetime = datetime.datetime(year, e, day)
+
+            # Make a "reference" trxs that contains what I expect to be in the slice
+            trxs_ref = Transactions()
+            # Grab everything from s to e, inclusive, recalling that trx_list has month 1 (January) at index 0
+            for i in range(s, e+1):
+                trxs_ref.add_transaction(trx_list[i-1])
+
+            # Make a slice
+            trxs_slice = trxs.slice_by_date(s_datetime, e_datetime)
+
+            # Check
+            print("trxs_ref: ")
+            print(trxs_ref)
+            print("trxs_slice: ")
+            print(trxs_slice)
+            self.assertEqual(trxs_ref, trxs_slice, msg='Failed on case: {0}'.format(str(case)))
+
+            # TODO: Test Incremenet
+            # TODO: Test failure if dates out of order
+            # TODO: Test Copy vs view

@@ -41,7 +41,7 @@ class Transaction(object):
         signed_amount = self.amount
         if self.transaction_type == 'debit':
             signed_amount = signed_amount * -1
-        ret = "{4} | {0} | ${1} | {2} | {3}".format(self.description, signed_amount, self.category, self.account,
+        ret = "{4} | {0} | ${1:+.2f} | {2} | {3}".format(self.description, signed_amount, self.category, self.account,
                                                        self.date.strftime(self.MINT_CSV_DATE_FORMAT))
         return ret
 
