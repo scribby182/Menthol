@@ -2,6 +2,7 @@ import datetime
 import random
 import string
 import pandas as pd
+import numpy as np
 
 # FEATURE: Add properties of setters/getters for all attributes.  Validate on set (eg: make sure date is a datetime format or can be converted to one, etc.)
 # FEATURE: Add Unit Tests
@@ -18,6 +19,20 @@ class Transaction(object):
     Class to store a single transaction record.
     """
     MINT_CSV_DATE_FORMAT = "%m/%d/%Y"
+    DEFAULT_DATA = np.array(
+        [
+            ("date", 'datetime64'),
+            ("description", 'object'),
+            ("description_original", 'object'),
+            ("amount", 'float64'),
+            ("transaction_type", 'object'),
+            ("category", 'object'),
+            ("account", 'object'),
+            ("labels", 'object'),
+            ("notes", 'object'),
+        ]
+    )
+
     DEFAULT_DATA_MAP = {
         "date": 0,
         "description": 1,
@@ -45,16 +60,7 @@ class Transaction(object):
         """
         Initialize an empty Transaction instance.
         """
-        self._date = None
-        self.description = None
-        self.description_original = None
-        self._amount = None
-        self.transaction_type = None
-        self.category = None
-        self.account = None
-        self.labels = None
-        self.notes = None
-        self.ds = None
+        self.ds = pd.Series([np.nan] * self.DEFAULT_DATA.shape[0], self.DEFAULT_DATA[:,0], self.DEFAULT_DATA[:,1])
 
     def __str__(self):
         signed_amount = self.amount
@@ -107,35 +113,42 @@ class Transaction(object):
         return Transaction.from_dict(defaults)
 
     @classmethod
-    def header(cls, separator=', ', data_map=None):
+    def header(cls, separator=', ', keys=None):
         """
         Returns a csv string in the format of a standard csv header file.
 
-        :param data_map: Map of the order data in which data will be returned.
+        KeyError will be raised if a key does not exist
+
+        :param keys: Ordered subset of keys to include in the returned string.
         :return: A csv-formatted string
         """
-        if data_map is None:
-            data_map = cls.DEFAULT_DATA_MAP
+        if keys is None:
+            keys_set = set(keys)
+            index_set = set(self.ds.index)
+            if not keys_set.issubset(index_set):
+                missing = keys_set.difference(index_set)
+                raise KeyError("Transaction is missing data: '{0}'".format(str(missing)))
+        else:
+            keys = list(self.ds.index)
 
-        header_as_list = [None] * len(data_map)
-        for k, col in data_map.items():
-            header_as_list[col] = k
-        return separator.join(header_as_list)
+        return separator.join(keys)
 
-    def to_csv(self, separator=', ', data_map=None):
+    def to_csv(self, separator=', ', keys=None):
         """
         Convert the transaction to a csv formatted string.
 
-        :param data_map: Map of the order data in which data will be returned.
+        KeyError will be raised if a key does not exist
+
+        :param keys: Ordered subset of keys to include in the returned string.
         :return: A csv-formatted string
         """
-        if data_map is None:
-            data_map = Transaction.DEFAULT_DATA_MAP
+        #TODO: Cehck if KeyError raised on incorrect key
+        if keys is None:
+            keys = list(self.ds.index)
 
-        trx_as_list = [None] * len(data_map)
-        for k, col in data_map.items():
-            trx_as_list[col] = getattr(self, k)
-            # Catch any special cases
+        trx_as_list = []
+        for k in keys:
+            trx_as_list = self.ds[k]
             if k == 'date':
                 trx_as_list[col] = trx_as_list[col].strftime(Transaction.MINT_CSV_DATE_FORMAT)
             if k == 'amount':
@@ -240,3 +253,124 @@ class Transaction(object):
         :return: None
         """
         self._amount = round(float(value), 2)
+
+
+    @property
+    def description(self):
+        """
+        Getter for property description, accessing data from internal Pandas Series
+        """
+        return self.ds['description']
+
+    @description.setter
+    def description(self, value):
+        """
+        Setter for description property.
+
+        :param value:
+        :return:
+        """
+        self.ds['description'] = value
+
+    @property
+    def description_original(self):
+        """
+        Getter for property description_original, accessing data from internal Pandas Series
+        """
+        return self.ds['description_original']
+
+    @description_original.setter
+    def description_original(self, value):
+        """
+        Setter for description_original property.
+
+        :param value:
+        :return:
+        """
+        self.ds['description_original'] = value
+
+    @property
+    def transaction_type(self):
+        """
+        Getter for property transaction_type, accessing data from internal Pandas Series
+        """
+        return self.ds['transaction_type']
+
+    @transaction_type.setter
+    def transaction_type(self, value):
+        """
+        Setter for transaction_type property.
+
+        :param value:
+        :return:
+        """
+        self.ds['transaction_type'] = value
+
+    @property
+    def category(self):
+        """
+        Getter for property category, accessing data from internal Pandas Series
+        """
+        return self.ds['category']
+
+    @category.setter
+    def category(self, value):
+        """
+        Setter for category property.
+
+        :param value:
+        :return:
+        """
+        self.ds['category'] = value
+
+    @property
+    def account(self):
+        """
+        Getter for property account, accessing data from internal Pandas Series
+        """
+        return self.ds['account']
+
+    @account.setter
+    def account(self, value):
+        """
+        Setter for account property.
+
+        :param value:
+        :return:
+        """
+        self.ds['account'] = value
+
+    @property
+    def labels(self):
+        """
+        Getter for property labels, accessing data from internal Pandas Series
+        """
+        return self.ds['labels']
+
+    @labels.setter
+    def labels(self, value):
+        """
+        Setter for labels property.
+
+        :param value:
+        :return:
+        """
+        self.ds['labels'] = value
+
+    @property
+    def notes(self):
+        """
+        Getter for property notes, accessing data from internal Pandas Series
+        """
+        return self.ds['notes']
+
+    @notes.setter
+    def notes(self, value):
+        """
+        Setter for notes property.
+
+        :param value:
+        :return:
+        """
+        self.ds['notes'] = value
+
