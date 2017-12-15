@@ -1,9 +1,16 @@
 import datetime
 import random
 import string
+import pandas as pd
 
 # FEATURE: Add properties of setters/getters for all attributes.  Validate on set (eg: make sure date is a datetime format or can be converted to one, etc.)
 # FEATURE: Add Unit Tests
+
+# TODO: Convert to pandas Series for data storage.  Use properties to keep outward facing API
+# TODO: Convert Transactions to DataFrame for storage.  How should outward API look?  How do I store now, keep the trx or just the DataFrame?
+# TODO: Does __eq__ work properly for series?  test!
+# TODO: How should slicing API work for the Transactions class?
+
 
 
 class Transaction(object):
@@ -22,6 +29,17 @@ class Transaction(object):
         "labels": 7,
         "notes": 8,
     }
+    DEFAULT_DATA_TYPE_MAP = {
+        "date": 'datetime64',
+        "description": 'object',
+        "description_original": 'object',
+        "amount": 'float64',
+        "transaction_type": 'object',
+        "category": 'object',
+        "account": 'object',
+        "labels": 'object',
+        "notes": 'object',
+    }
 
     def __init__(self):
         """
@@ -36,6 +54,7 @@ class Transaction(object):
         self.account = None
         self.labels = None
         self.notes = None
+        self.ds = None
 
     def __str__(self):
         signed_amount = self.amount
@@ -138,7 +157,7 @@ class Transaction(object):
         return trx
 
     @classmethod
-    def from_csv(cls, csv_string, data_map=None):
+    def from_csv(cls, csv_string, data_map=None, data_type_map=None):
         """
         Initialize and return a Transaction instance from a comma separated string.
 
@@ -164,14 +183,21 @@ class Transaction(object):
 
         trx = cls()
         if data_map is None:
-            data_map = dict(Transaction.DEFAULT_DATA_MAP)
+            data_map = Transaction.DEFAULT_DATA_MAP
+        if data_type_map is None:
+            data_type_map = Transaction.DEFAULT_DATA_TYPE_MAP
+
+        # Better way to do this?  Must be...
+        index = [None] * len(data_map)
+        dtype = [None] * len(data_map)
+        for k, col in data_map.items():
+            index[col] = k
+            dtype[col] = data_type_map[k]
 
         # Split and strip any extra whitespace
         csv_list = [text.strip() for text in csv_string.split(',')]
 
-        # Store attributes in proper spots
-        for attr, col in data_map.items():
-                setattr(trx, attr, csv_list[col])
+        trx.ds = pd.Series(csv_list, index, dtype)
 
         return trx
 
