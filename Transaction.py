@@ -83,8 +83,7 @@ class Transaction(object):
         defaults.update(**kwargs)
         return Transaction.from_dict(defaults)
 
-    @classmethod
-    def header(cls, separator=', ', keys=None):
+    def header(self, separator=', ', fields=None):
         """
         Returns a csv string in the format of a standard csv header file.
 
@@ -93,16 +92,23 @@ class Transaction(object):
         :param keys: Ordered subset of keys to include in the returned string.
         :return: A csv-formatted string
         """
-        if keys is None:
-            keys_set = set(keys)
-            index_set = set(self.ds.index)
-            if not keys_set.issubset(index_set):
-                missing = keys_set.difference(index_set)
-                raise KeyError("Transaction is missing data: '{0}'".format(str(missing)))
-        else:
-            keys = list(self.ds.index)
+        if fields is None:
+            fields = list(self.fields)
 
-        return separator.join(keys)
+        return separator.join(fields)
+
+    def to_list(self, fields=None):
+        """
+        Returns a list of the data in the Transaction.
+
+        :param fields: (Optional) Defines an ordered list of the fields to return
+        :return: List containing date requested
+        """
+        if fields is None:
+            fields = self.fields
+
+        data = [getattr(self, field) for field in fields]
+        return data
 
     def to_csv(self, separator=', ', fields=None):
         """
@@ -208,6 +214,16 @@ class Transaction(object):
         """
         self.data['amount'][1] = round(float(value), 2)
 
+    @property
+    def signed_amount(self):
+        """
+        Getter for amount with a +/- sign
+        :return:
+        """
+        signed_amount = self.amount
+        if self.transaction_type == 'debit':
+            signed_amount = signed_amount * -1
+        return signed_amount
 
     @property
     def description(self):

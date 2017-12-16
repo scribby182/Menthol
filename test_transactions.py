@@ -14,11 +14,12 @@ class TestTransactions(TestCase):
         """
         trx = Transaction.sample_trx()
         trxs = Transactions()
-        len_orig = len(trxs.transactions)
+        len_orig = len(trxs)
         trxs.add_transaction(trx)
+        print("got trxs: ")
+        print(trxs.df)
 
-        self.assertEqual(len(trxs.transactions), len_orig + 1, msg='Failed test if add_transaction increases length of trxs.transactions')
-        self.assertTrue(isinstance(trxs.transactions[0], Transaction), msg='Failed test if add_transaction yields a Transaction instance in trxs')
+        self.assertEqual(len(trxs), len_orig + 1, msg='Failed test if add_transaction increases length of trxs.transactions')
 
     def test_len(self):
         """
@@ -42,12 +43,12 @@ class TestTransactions(TestCase):
         sample_csvs = \
             [
                 "./test_transactions_sample_transactions.csv",
-                "./test_transactions_sample_transactions_empty.csv",
                 "./test_transactions_sample_transactions_with_spaces.csv",
                 "./test_transactions_sample_transactions_no_ending_space.csv",
             ]
 
         for sample_csv in sample_csvs:
+            print(f"testing {sample_csv}")
             with open(sample_csv, 'r') as fin:
                 sample_csv_list = fin.readlines()
 
@@ -58,68 +59,68 @@ class TestTransactions(TestCase):
             sample_csv_len = len(sample_csv_list)
 
             trxs = Transactions.from_csv(sample_csv)
+            print(trxs)
             self.assertEqual(len(trxs), sample_csv_len, msg="Test failed for {0}".format(sample_csv))
 
-        # Special cases - see if they match trxs from above
-        # Transactions without header
-        fname = 'test_transactions_sample_transactions_no_header.csv'
-        trxs2 = Transactions.from_csv(fname, header=False)
-        self.assertEqual(trxs, trxs2, msg=f"Test failed for {fname}")
 
+        # Special cases - see if they match trxs from above
         # Transactions with date as final column
         fname = 'test_transactions_sample_transactions_misordered.csv'
-        trxs2 = Transactions.from_csv(fname, header=True)
+        trxs2 = Transactions.from_csv(fname)
         self.assertEqual(trxs, trxs2, msg=f"Test failed for {fname}")
 
-        # Transactions with header on line 2
-        fname = 'test_transactions_sample_transactions_header_line_2.csv'
-        self.assertRaises(ValueError, lambda: Transactions.from_csv(fname, header=True))
+        fname = "./test_transactions_sample_transactions_empty.csv",
+        self.assertRaises(ValueError, lambda: Transactions.from_csv(fname))
 
-    # def test_to_csv(self):
-    #     """
-    #     Test Transactions.to_csv by creating data, exporting to csv, then reimporting.
-    #     :return:
-    #     """
-    #     trxs = Transactions.sample_trxs(10)
-    #
-    #     temp_outfile = "test_transactions_to_csv.csv"
-    #     trxs.to_csv(temp_outfile)
-    #
-    #     # Load csv back as new transactions file
-    #     trxs_loaded = trxs.from_csv(temp_outfile)
-    #     for i in range(len(trxs)):
-    #         self.assertEqual(trxs.transactions[i], trxs_loaded.transactions[i])
-    #
+    def test_to_csv(self):
+        """
+        Test Transactions.to_csv by creating data, exporting to csv, then reimporting.
+        :return:
+        """
+        trxs = Transactions.sample_trxs(10)
+
+        temp_outfile = "test_transactions_to_csv.csv"
+        trxs.to_csv(temp_outfile)
+
+        # Load csv back as new transactions file
+        trxs_loaded = trxs.from_csv(temp_outfile)
+        for i in range(len(trxs)):
+            self.assertEqual(trxs, trxs_loaded)
+
     def test_compare(self):
         """
         Test Transactions.__eq__()
         """
-        trxs = Transactions.sample_trxs(10)
+        trxs_list = [Transaction.sample_trx() for i in range(10)]
+        trxs1 = Transactions()
+        trxs2 = Transactions()
+
+        for trx in trxs_list:
+            trxs1.add_transaction(trx)
+            trxs2.add_transaction(trx)
 
         # Should be equal to itself
-        self.assertEqual(trxs, trxs)
+        self.assertEqual(trxs1, trxs1)
 
         # Should be equal to something made from all the same transactions
-        trxs_fake_copy = Transactions()
-        for trx in trxs.transactions:
-            trxs_fake_copy.add_transaction(trx)
-        self.assertEqual(trxs, trxs_fake_copy)
+        self.assertEqual(trxs1, trxs2)
 
         # Should be equal to a shallow copy
-        trxs_copy = copy.copy(trxs)
-        self.assertEqual(trxs, trxs_copy)
+        trxs1_copy = copy.copy(trxs1)
+        self.assertEqual(trxs1, trxs1_copy)
 
         # Even after we change something
-        trxs_copy.transactions[0].amount += 1
-        self.assertEqual(trxs, trxs_copy)
+        trxs1_copy.df.iloc[0].amount += 1
+        self.assertEqual(trxs1, trxs1_copy)
 
         # Should be equal to a deep copy
-        trxs_deepcopy = copy.deepcopy(trxs)
-        self.assertEqual(trxs, trxs_deepcopy)
-
+        trxs1_deepcopy = copy.deepcopy(trxs1)
+        self.assertEqual(trxs1, trxs1_deepcopy)
         # Shouldn't be equal if I change something about the deepcopy
-        trxs_deepcopy.transactions[0].amount += 1
-        self.assertNotEqual(trxs, trxs_deepcopy)
+        # Need to use the columns == 'amount' method because iloc doesn't accept columns by name (just a boolean list)
+        # and chaining with .amount would cause me to edit a copy, not a view.
+        trxs1_deepcopy.df.iloc[0, trxs1_deepcopy.df.columns == 'amount'] = trxs1_deepcopy.df.iloc[0].amount + 1 # Add 1 to all amount fields
+        self.assertNotEqual(trxs1, trxs1_deepcopy)
 
     def test_slice_by_date(self):
         """
@@ -164,6 +165,7 @@ class TestTransactions(TestCase):
             trxs_ref = Transactions()
             # Grab everything from s to e, inclusive, recalling that trx_list has month 1 (January) at index 0
             for i in range(s, e+1):
+                print('adding i: ', i)
                 trxs_ref.add_transaction(trx_list[i-1])
 
             # Make a slice
@@ -174,18 +176,21 @@ class TestTransactions(TestCase):
             print(trxs_ref)
             print("trxs_slice: ")
             print(trxs_slice)
+            # Reindex the slice's index so they both start at 0...
+            trxs_slice.df = trxs_slice.df.reset_index(drop = True)
             self.assertEqual(trxs_ref, trxs_slice, msg='Failed on case: {0}'.format(str(case)))
 
         # Test if slice is a copy of all Transactions
-        trxs_slice = trxs.slice_by_date(None, None, trx_as_copy=True)
-        trxs_slice.transactions[0].amount += 1
+        trxs_slice = trxs.slice_by_date(None, None)
+        trxs_slice.df.iloc[0, trxs_slice.df.columns == 'amount'] += 1
         self.assertNotEqual(trxs, trxs_slice)
 
-        # Test if slice is a view of all Transactions
-        trxs_slice = trxs.slice_by_date(None, None, trx_as_copy=False)
-        trxs_slice.transactions[0].amount += 1
-        self.assertEqual(trxs, trxs_slice)
+        # # Test if slice is a view of all Transactions
+        # trxs_slice = trxs.slice_by_date(None, None, trx_as_copy=False)
+        # trxs_slice.transactions[0].amount += 1
+        # self.assertEqual(trxs, trxs_slice)
 
+        # Check if misordered dates raise ValueError
         start = datetime.datetime.today()
         end = start - datetime.timedelta(1)
         self.assertRaises(ValueError, trxs.slice_by_date, start, end)

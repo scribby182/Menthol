@@ -1,10 +1,6 @@
-from Transaction import Transaction
+import pandas as pd
 import copy
-
-# FEATURE: Likely makes sense to store transactions as a Pandas dataframe, but that isn't so good for practice...
-# TODO: Convert Transactions to DataFrame for storage.  How should outward API look?  How do I store now, keep the trx or just the DataFrame?
-# TODO: Does __eq__ work properly for DataFrame?  test!
-# TODO: How should slicing API work for the Transactions class?
+from Transaction import Transaction
 
 class Transactions(object):
     """
@@ -12,15 +8,31 @@ class Transactions(object):
     """
 
     def __init__(self):
-        self.transactions = []
+        self.df = None
 
     def __len__(self):
         """
-        Returns length of Transactions instance, which is equivalent to the number of transactions contained in object.
+        Returns number of transactions in the object.
 
         :return: Integer length
         """
-        return len(self.transactions)
+        if isinstance(self.df, pd.DataFrame):
+            return len(self.df)
+        else:
+            return 0
+
+    def transaction_as_str(self, i):
+        """
+        Return a string summarizing a transaction (a single row within this object)
+
+        :param i: Integer index to return
+        :return: String
+        """
+        d = self.df.iloc[i]
+        # print("d before printing:")
+        # print(d)
+        ret = f"{d.name}: {d['date']} | {d['signed_amount']} | {d['description']} | {d['category']} | {d['account']}"
+        return ret
 
     def __str__(self):
         """
@@ -30,33 +42,26 @@ class Transactions(object):
         if len(self) == 0:
             string = "<empty Transactions object>"
         else:
-            string = "0: " + self.transactions[0].__str__() + "\n"
+            string = f"{self.transaction_as_str(0)}"
 
         for i in range(1, len(self)):
-            string += str(i) + ": " + self.transactions[i].__str__() + "\n"
+            string += f"\n{self.transaction_as_str(i)}"
         return string
 
     def __eq__(self, other):
         """
         Compare two Transactions objects.  Returns true if both have the same transactions in the same order.
 
-        Transaction similarity is evaluated using Transaction.__eq__, which returns True if objects contain the same
-        data (the objects do not need to be the same object).
+        Sorts the dataframe column order, so column order does not matter in the match.
 
         :return: Boolean
         """
-        if len(self) != len(other):
-            return False
-
-        # If the same length, we can traverse through self comparing to the corresponding element in other.  If nothing
-        # is in disagreement, then we're good.
-        equal = True
-        for i in range(len(self.transactions)):
-            if self.transactions[i] != other.transactions[i]:
-                equal = False
-                break
-        return equal
-
+        print("self: ")
+        print(self.df)
+        print('other: ')
+        print(other.df)
+        return self.df.reindex_axis(sorted(self.df.columns), axis=1).equals(
+               other.df.reindex_axis(sorted(other.df.columns), axis=1))
 
     def add_transaction(self, trx):
         """
@@ -65,22 +70,26 @@ class Transactions(object):
         :param trx: An instance of Transaction
         :return: None
         """
-        # FEATURE: Auto-sort transactions on add?  Or keep different sorted maps (by category, date, ...)?
-        # FEATURE: Optional (on by default) make copy of transaction as you store it, rather than a view?
         if not isinstance(trx, Transaction):
             raise TypeError("Invalid type for trx ('{0}').  Must be instance of Transaction".format(type(trx)))
-        self.transactions.append(trx)
+        # Store all data in the order of trx.fields, with the signed amount appended to the end.
+        # Adding signed_amount could be cleaner...
+        data = trx.to_list() + [trx.signed_amount]
+        columns = trx.fields + ["signed_amount"]
+        df = pd.DataFrame(data=[data], columns=columns)
 
-    def slice_by_date(self, start=None, stop=None, incremenet=None, trx_as_copy=True):
+        if self.df is None:
+            self.df = df
+        else:
+            self.df = self.df.append(df, ignore_index=True)
+
+    def slice_by_date(self, start=None, stop=None, incremenet=None):
         """
-        Slice the Transactions object by a date range, returning a new Transactions object.
+        Slice the Transactions object by a date range, returning a new Transactions object with a copy of the DataFrame.
 
         :param start: (Optional) Start of date range, in datetime format.  If omitted, range starts at earliest record
         :param stop: (Optional) End date for range, in datetime format.   If omitted, range ends at latest record
         :param incremenet: Not implemented (not sure what it would mean here)
-        :param trx_as_copy: If True, returns a Transactions object with new copies of all relevant Transaction instances
-                            If False, returns a Transactions object that references the original relevant Transaction
-                            instances
         :return: A new Transactions object
         """
         # Validate inputs
@@ -93,20 +102,19 @@ class Transactions(object):
 
         newtrxs = Transactions()
 
-        for trx in self.transactions:
-            if start is not None:
-                # If date < start, outside scope.  Skip
-                if trx.date < start:
-                    continue
-            if stop is not None:
-                # If date > stop, outside scope.  Skip
-                if trx.date > stop:
-                    continue
-            # If I get here, we're in scope!
-            if trx_as_copy:
-                trx = copy.deepcopy(trx)
-            newtrxs.add_transaction(trx)
+        if start is None:
+            start = self.df['date'].min()
+        if stop is None:
+            stop = self.df['date'].max()
 
+        rows = (self.df['date'] >= start) & (self.df['date'] <= stop)
+        print("rows: ")
+        print(rows)
+        df_temp = self.df.loc[rows, :]
+        print('df_temp')
+        print(df_temp)
+
+        newtrxs.df = df_temp
         return newtrxs
 
     def to_csv(self, csv_file, header=True, data_map=None):
@@ -118,57 +126,31 @@ class Transactions(object):
         :param data_map: Dictionary that maps data fields to columns in the output file (NOT IMPLEMENTED)
         :return: None
         """
-        # TODO: Revisit this with the Transactions as DataFrame.  Reenable test_to_csv
-        # FEATURE: Make header let user reorganize and selectively choose what to export?  Use data_map dict?
-        if data_map is None:
-            # Use default data map from Transaction class if not specified here
-            data_map = Transaction.DEFAULT_DATA_MAP
-        else:
-            raise NotImplementedError("Transactions.to_csv data_map argument not yet implemented")
-        attrs = [None] * len(data_map)
-        for k, col in data_map.items():
-            attrs[col] = k
-
-        with open(csv_file, 'w') as fout:
-            if header:
-                # Write the header
-                fout.write(Transaction.header() + "\n")
-
-            # Write the data
-            for trx in self.transactions:
-                fout.write(trx.to_csv() + "\n")
+        self.df.to_csv(csv_file, index=False)
 
     @classmethod
-    def from_csv(cls, csv_file, header=True):
+    def from_csv(cls, csv_file, sep='\s*,\s*'):
         """
         Load a set of transactions from a csv file and return as a Transactions instance.
 
         :param csv_file: Filename of the csv file to read transactions from
-        :param header: If true, first row is taken as a csv header.  The labels in the header will be used to build the
-                       fields list passed to the Transaction constructor.
+        :param sep: Separator between fields (in Pandas DataFrame read_csv sep format, eg: can be a regular expression)
         :return: An instance of Transactions
         """
-        with open(csv_file, 'r') as fin:
-            csv_list = fin.readlines()
-        if header:
-            header_text = csv_list.pop(0)
-            if not header_text.strip():
-                raise ValueError(
-                    f"Invalid header in file {csv_file} - header should have 1 or more elements.  " +
-                    "Header must be on the first line - check the csv file an empty first line.")
-            fields = [text.strip() for text in header_text.split(',')]
-        else:
-            fields = None
-
         trxs = Transactions()
-
-        # Loop through all transactions, adding to trxs as we go
-        for csv in csv_list:
-            # Check for empty lines
-            if not csv.strip():
-                continue
-            trxs.add_transaction(Transaction.from_csv(csv, fields = fields))
-
+        # Parse with Python engine to support regex separator
+        trxs.df = pd.read_csv(csv_file, sep=sep, parse_dates=['date'], dtype={'amount': 'float64'}, engine='python')
+        if len(trxs) > 0:
+            def signed_amount(ds):
+                if ds.transaction_type == 'credit':
+                    return ds.amount
+                elif ds.transaction_type == 'debit':
+                    return -ds.amount
+                else:
+                    raise ValueError(f"Invalid transaction_type {ds.transaction_type}")
+        else:
+            raise ValueError(f"No data found in csv file {csv_file}")
+        trxs.df['signed_amount'] = trxs.df.apply(signed_amount, axis=1)
         return trxs
 
     @classmethod

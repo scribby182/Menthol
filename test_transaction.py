@@ -175,10 +175,37 @@ class TestTransaction(TestCase):
         """
         Test Transaction.to_csv() function
 
-        Validate by  creating a sample transaction, converting to csv, then making another Transaction with that csv
+        Validate by creating a sample transaction, converting to csv, then making another Transaction with that csv
         and comparing.
         """
         trx = Transaction.sample_trx()
         csv = trx.to_csv()
         trx_from_csv = Transaction.from_csv(csv)
         self.assertEqual(trx, trx_from_csv)
+
+    def test_to_list(self):
+        """
+        Test Transactions.to_list() function
+
+        Test by making a Transaction using a given list of data and then returning a new list and comparing to the orig.
+
+        This test is super ugly...
+        """
+        # Make reference data different from the data passed in because returned data from to_list is the formatted
+        # data (eg: amount is a float, date is a datetime object)
+        some_data_ref = [datetime.datetime(2017, 12, 11),
+                         "Some Transaction Description",
+                         "Some Transaction Description Original with Fancy Chars (*&*^*%&^!@#",
+                         20.50,
+                         "debit",
+                         "Groceries",
+                         "Barclaycard",
+                         "labels",
+                         "some notes with stuff 91287312987393 17239812(@*&#!(*&#(!@#@#%&(!*&#"]
+        some_data = list(some_data_ref)
+        some_data[0] = datetime.datetime.strftime(some_data[0], Transaction.MINT_CSV_DATE_FORMAT)
+        some_data[3] = str(some_data_ref[3])
+
+        trx = Transaction.from_csv(",".join(some_data))
+        some_data_new = trx.to_list()
+        self.assertEqual(some_data_ref, some_data_new)
