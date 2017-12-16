@@ -77,13 +77,15 @@ class TestTransaction(TestCase):
                         "notes": 0,
                     }
         some_misordered_data = [None] * len(some_data)
+        some_misordered_fields = [None] * len(some_data)
         some_misordered_correct_results = [None] * len(some_misordered_data)
         for attr, col_ordered in data_map.items():
             col_misordered = misordered_data_map[attr]
             some_misordered_data[col_misordered] = some_data[col_ordered]
+            some_misordered_fields[col_misordered] = attr
             some_misordered_correct_results[col_misordered] = some_correct_results[col_ordered]
         misordered_csv = ",".join(some_misordered_data)
-        trx = Transaction.from_csv(misordered_csv, misordered_data_map)
+        trx = Transaction.from_csv(misordered_csv, fields = some_misordered_fields)
         for attr, col in misordered_data_map.items():
             self.assertEqual(getattr(trx, attr), some_misordered_correct_results[col],
                              msg="Failed csv case {0} on attr {1} (match against correct results)".format("misordered", attr))
