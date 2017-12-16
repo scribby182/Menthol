@@ -3,6 +3,7 @@ from Transactions import Transactions
 from Transaction import Transaction
 import datetime
 import copy
+import random
 
 class TestTransactions(TestCase):
     """
@@ -194,3 +195,60 @@ class TestTransactions(TestCase):
         start = datetime.datetime.today()
         end = start - datetime.timedelta(1)
         self.assertRaises(ValueError, trxs.slice_by_date, start, end)
+
+    def test_slice_by_categories(self):
+        """
+            Test Transactions.slice_by_date by slicing a sample Transactions object
+        :return:
+        """
+        trxs = {
+            'all': Transactions(),
+            'A': Transactions(),
+            'B': Transactions(),
+            'AB': Transactions(),
+        }
+
+        categories = random.choices("ABC", k=10)
+        print(categories)
+        trx_list = [Transaction.sample_trx(category = categories[i], amount=i) for i in range(len(categories))]
+
+        for trx in trx_list:
+            trxs['all'].add_transaction(trx)
+            if trx.category == 'A':
+                trxs['A'].add_transaction(trx)
+                trxs['AB'].add_transaction(trx)
+            if trx.category == 'B':
+                trxs['B'].add_transaction(trx)
+                trxs['AB'].add_transaction(trx)
+
+        for k in trxs:
+            print("k: ", k)
+            print(trxs[k])
+
+        cases = [
+            ['A'],
+            ['B'],
+            ['A', 'B'],
+        ]
+
+        for case in cases:
+            print("Checking case: ", case)
+
+            trxs_slice = trxs['all'].slice_by_category(case)
+            # Reset index because slice will have different indexing...
+            trxs_slice.df = trxs_slice.df.reset_index(drop = True)
+
+            print(trxs_slice)
+
+            if 'A' in case and 'B' in case:
+                self.assertNotEqual(trxs['A'], trxs_slice, msg='Failed on case: A compared to {0}'.format(str(case)))
+                self.assertNotEqual(trxs['B'], trxs_slice, msg='Failed on case: B compared to {0}'.format(str(case)))
+                self.assertEqual(trxs['AB'], trxs_slice, msg='Failed on case: AB compared to {0}'.format(str(case)))
+            elif 'A' in case:
+                self.assertEqual(trxs['A'], trxs_slice, msg='Failed on case: A compared to {0}'.format(str(case)))
+                self.assertNotEqual(trxs['B'], trxs_slice, msg='Failed on case: B compared to {0}'.format(str(case)))
+                self.assertNotEqual(trxs['AB'], trxs_slice, msg='Failed on case: AB compared to {0}'.format(str(case)))
+            elif 'B' in case:
+                self.assertNotEqual(trxs['A'], trxs_slice, msg='Failed on case: A compared to {0}'.format(str(case)))
+                self.assertEqual(trxs['B'], trxs_slice, msg='Failed on case: B compared to {0}'.format(str(case)))
+                self.assertNotEqual(trxs['AB'], trxs_slice, msg='Failed on case: AB compared to {0}'.format(str(case)))

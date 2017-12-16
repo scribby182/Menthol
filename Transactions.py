@@ -83,17 +83,46 @@ class Transactions(object):
         else:
             self.df = self.df.append(df, ignore_index=True)
 
-    def slice_by_date(self, start=None, stop=None, incremenet=None):
+    def slice_by_category(self, categories):
+        """
+        Return a slice of the Transactions object, including transactions in any of the requested categories.
+        :param categories:
+        :return:
+        """
+        return self.slice_by_keys('category', categories)
+
+    def slice_by_keys(self, column, keys):
+        """
+        Return a slice of the Transaction object, matching cany keys in a given column
+        :param column: The column to slice on
+        :param keys: A list of keys to include in the returned Transactions instance
+        :return: A new Transactions instance
+        """
+        trxs = Transactions()
+
+        # Initialize an all-false boolean index
+        rows = self.df.index == None
+
+        # Grab anything that was already matched (True in rows) or matches this cat
+        for k in keys:
+            print("processing category: ", k)
+            rows = (rows) | (self.df.loc[:, column] == k)
+
+        trxs.df = self.df.loc[rows]
+
+        return trxs
+
+    def slice_by_date(self, start=None, stop=None, increment=None):
         """
         Slice the Transactions object by a date range, returning a new Transactions object with a copy of the DataFrame.
 
-        :param start: (Optional) Start of date range, in datetime format.  If omitted, range starts at earliest record
-        :param stop: (Optional) End date for range, in datetime format.   If omitted, range ends at latest record
+        :param start: (Optional) Start of date range, in date format.  If omitted, range starts at earliest record
+        :param stop: (Optional) End date for range, in date format.   If omitted, range ends at latest record
         :param incremenet: Not implemented (not sure what it would mean here)
         :return: A new Transactions object
         """
         # Validate inputs
-        if incremenet is not None:
+        if increment is not None:
             raise NotImplementedError
 
         if start is not None and stop is not None:
@@ -108,11 +137,7 @@ class Transactions(object):
             stop = self.df['date'].max()
 
         rows = (self.df['date'] >= start) & (self.df['date'] <= stop)
-        print("rows: ")
-        print(rows)
         df_temp = self.df.loc[rows, :]
-        print('df_temp')
-        print(df_temp)
 
         newtrxs.df = df_temp
         return newtrxs
