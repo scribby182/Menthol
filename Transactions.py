@@ -2,6 +2,9 @@ from Transaction import Transaction
 import copy
 
 # FEATURE: Likely makes sense to store transactions as a Pandas dataframe, but that isn't so good for practice...
+# TODO: Convert Transactions to DataFrame for storage.  How should outward API look?  How do I store now, keep the trx or just the DataFrame?
+# TODO: Does __eq__ work properly for DataFrame?  test!
+# TODO: How should slicing API work for the Transactions class?
 
 class Transactions(object):
     """
@@ -115,6 +118,7 @@ class Transactions(object):
         :param data_map: Dictionary that maps data fields to columns in the output file (NOT IMPLEMENTED)
         :return: None
         """
+        # TODO: Revisit this with the Transactions as DataFrame.  Reenable test_to_csv
         # FEATURE: Make header let user reorganize and selectively choose what to export?  Use data_map dict?
         if data_map is None:
             # Use default data map from Transaction class if not specified here
@@ -141,16 +145,20 @@ class Transactions(object):
 
         :param csv_file: Filename of the csv file to read transactions from
         :param header: If true, first row is taken as a csv header.  The labels in the header will be used to build the
-                       data_map dictionary to construct the transactions.
+                       fields list passed to the Transaction constructor.
         :return: An instance of Transactions
         """
         with open(csv_file, 'r') as fin:
             csv_list = fin.readlines()
         if header:
-            header = [text.strip() for text in csv_list.pop(0).split(',')]
-            data_map = {header[i]: i for i in range(len(header))}
+            header_text = csv_list.pop(0)
+            if not header_text.strip():
+                raise ValueError(
+                    f"Invalid header in file {csv_file} - header should have 1 or more elements.  " +
+                    "Header must be on the first line - check the csv file an empty first line.")
+            fields = [text.strip() for text in header_text.split(',')]
         else:
-            data_map = None
+            fields = None
 
         trxs = Transactions()
 
@@ -159,7 +167,7 @@ class Transactions(object):
             # Check for empty lines
             if not csv.strip():
                 continue
-            trxs.add_transaction(Transaction.from_csv(csv, data_map=data_map))
+            trxs.add_transaction(Transaction.from_csv(csv, fields = fields))
 
         return trxs
 

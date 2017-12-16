@@ -60,21 +60,36 @@ class TestTransactions(TestCase):
             trxs = Transactions.from_csv(sample_csv)
             self.assertEqual(len(trxs), sample_csv_len, msg="Test failed for {0}".format(sample_csv))
 
-    def test_to_csv(self):
-        """
-        Test Transactions.to_csv by creating data, exporting to csv, then reimporting.
-        :return:
-        """
-        trxs = Transactions.sample_trxs(10)
+        # Special cases - see if they match trxs from above
+        # Transactions without header
+        fname = 'test_transactions_sample_transactions_no_header.csv'
+        trxs2 = Transactions.from_csv(fname, header=False)
+        self.assertEqual(trxs, trxs2, msg=f"Test failed for {fname}")
 
-        temp_outfile = "test_transactions_to_csv.csv"
-        trxs.to_csv(temp_outfile)
+        # Transactions with date as final column
+        fname = 'test_transactions_sample_transactions_misordered.csv'
+        trxs2 = Transactions.from_csv(fname, header=True)
+        self.assertEqual(trxs, trxs2, msg=f"Test failed for {fname}")
 
-        # Load csv back as new transactions file
-        trxs_loaded = trxs.from_csv(temp_outfile)
-        for i in range(len(trxs)):
-            self.assertEqual(trxs.transactions[i], trxs_loaded.transactions[i])
+        # Transactions with header on line 2
+        fname = 'test_transactions_sample_transactions_header_line_2.csv'
+        self.assertRaises(ValueError, lambda: Transactions.from_csv(fname, header=True))
 
+    # def test_to_csv(self):
+    #     """
+    #     Test Transactions.to_csv by creating data, exporting to csv, then reimporting.
+    #     :return:
+    #     """
+    #     trxs = Transactions.sample_trxs(10)
+    #
+    #     temp_outfile = "test_transactions_to_csv.csv"
+    #     trxs.to_csv(temp_outfile)
+    #
+    #     # Load csv back as new transactions file
+    #     trxs_loaded = trxs.from_csv(temp_outfile)
+    #     for i in range(len(trxs)):
+    #         self.assertEqual(trxs.transactions[i], trxs_loaded.transactions[i])
+    #
     def test_compare(self):
         """
         Test Transactions.__eq__()
