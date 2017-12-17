@@ -1,6 +1,11 @@
 import pandas as pd
 import copy
 from Transaction import Transaction
+import datetime
+import calendar
+import numpy as np
+
+# FEATURE: Continue summarize_transactions.  Add the by categories control (or not implemented error).  Figure out how you want to use it to plot anything useful.  Maybe make a summary table version that compiles multiple of these things?  Should there be a summary table object to handle these?
 
 class Transactions(object):
     """
@@ -105,7 +110,6 @@ class Transactions(object):
 
         # Grab anything that was already matched (True in rows) or matches this cat
         for k in keys:
-            print("processing category: ", k)
             rows = (rows) | (self.df.loc[:, column] == k)
 
         trxs.df = self.df.loc[rows]
@@ -142,7 +146,7 @@ class Transactions(object):
         newtrxs.df = df_temp
         return newtrxs
 
-    def to_csv(self, csv_file, header=True, data_map=None):
+    def to_csv(self, csv_file):
         """
         Export transactions in a Transactions instance to a csv file, optionally with a header.
 
@@ -193,3 +197,89 @@ class Transactions(object):
         for i in range(n):
             trxs.add_transaction(Transaction.sample_trx(**kwargs))
         return trxs
+
+    def summarize_transactions(self, by='categories', n_months=1, start=None, stop=None):
+        """
+        Return a DataFrame summarizing the rolling average over n_months of spending in each category.
+
+        Indices of the DataFrame are the month/year of the last day in each interval.  Columns are the categories
+        :param by:
+        :param n_months:
+        :param start: Starting date of the intervals to return (will be rounded to the start of the month)
+        :param stop: End date of the intervals to return (will be rounded to the end of the month)
+        :return:
+        """
+        # FEATURE: Should this function return intervals starting at start (so for n_months > 1, this interval would be incomplete) or from start + n_months - 1?
+        # Get start and end dates, if not specified.  Use first and last purchase.
+        if start is None:
+            start = self.df['date'].min().replace(day=1)
+        if stop is None:
+            stop = self.df['date'].max()
+
+        # Build intervals to examine data over
+        intervals = [(start, monthdelta(start, n_months-1))]
+
+        while intervals[-1][-1] < stop:
+            next_start = monthdelta(intervals[-1][0], 1, day=1)
+            intervals.append((next_start, monthdelta(next_start, n_months-1)))
+            print('intervals: ')
+            print(intervals)
+
+        dss = []
+        for interval in intervals:
+            trxs = self.slice_by_date(interval[0], interval[1])
+            data = {}
+            for cat in trxs.categories:
+                data[cat] = trxs.slice_by_category([cat]).sum() / float(n_months)
+            print(data)
+            dss.append(pd.Series(data=data, name=interval[1]))
+            print(dss[-1])
+        df = pd.DataFrame(dss)
+        print(df)
+        return df
+
+    def sum(self):
+        if isinstance(self.df, pd.DataFrame):
+            return self.df['signed_amount'].sum()
+        else:
+            return 0.0
+
+    @property
+    def categories(self):
+        """
+        Returns an ndarray of the categories used in this Transactions object
+        """
+        try:
+            return self.df['category'].unique()
+        except KeyError:
+            return np.array([])
+
+# Helpers
+def monthdelta(date, delta, day=None):
+    """
+    Return a date object that is delta months away from date.
+
+    :param date:
+    :param delta:
+    :param day: If int, this specifics the day of the month to be returned (eg: day=5 means day 5).  If None, will
+                return the last day of the month.
+    :return:
+    """
+    m, y = (date.month + delta) % 12, date.year + ((date.month) + delta - 1) // 12
+    if not m:
+        m = 12
+    if day is None:
+        date = lastday(date.replace(month=m, year=y))
+    else:
+        date = date.replace(day=day, month=m, year=y)
+    return date
+
+def lastday(date):
+    """
+    Returns a datetime object for the last day of the month in date.
+
+    :param date: Datetime object
+    :return: Datetime object
+    """
+    d = calendar.monthrange(date.year, date.month)[1]
+    return date.replace(day=d)

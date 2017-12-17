@@ -1,9 +1,13 @@
 from unittest import TestCase
 from Transactions import Transactions
+from Transactions import monthdelta
 from Transaction import Transaction
 import datetime
 import copy
 import random
+import pandas as pd
+import numpy as np
+import calendar
 
 class TestTransactions(TestCase):
     """
@@ -252,3 +256,47 @@ class TestTransactions(TestCase):
                 self.assertNotEqual(trxs['A'], trxs_slice, msg='Failed on case: A compared to {0}'.format(str(case)))
                 self.assertEqual(trxs['B'], trxs_slice, msg='Failed on case: B compared to {0}'.format(str(case)))
                 self.assertNotEqual(trxs['AB'], trxs_slice, msg='Failed on case: AB compared to {0}'.format(str(case)))
+
+    def test_summarize_transactions(self):
+        """
+        Test summarize_transactions
+        """
+        trxs_list = []
+        year = 2016
+        dates = [datetime.datetime(year, m, d) for m in range(1,13) for d in [1, 15]]
+        print('dates: ')
+        print(dates)
+
+        trxs_list.extend([Transaction.sample_trx(date=date, transaction_type='debit', amount=1, category='constant 1') for date in dates])
+        trxs_list.extend([Transaction.sample_trx(date=date, transaction_type='debit', amount=i+1, category='linear increasing 1') for i, date in enumerate(dates)])
+
+        y1 = [-2.0] * 12
+
+        y2 = [-(3 + (i-1) * 4) for i in range(1, 13)]
+        data = np.array([y1, y2]).T
+        dates_1_month = [datetime.datetime(year, m, calendar.monthrange(year, m)[1]) for m in range(1,13)]
+        summary_1_ref = pd.DataFrame(data, columns=['constant 1', 'linear increasing 1'], index=dates_1_month)
+
+        y2 = [-(7 + (i-3) * 4) for i in range(3, 13)]
+        data = np.array([y1[2:], y2]).T
+        dates_3_month = [datetime.datetime(year, m, calendar.monthrange(year, m)[1]) for m in range(3,13)]
+        summary_3_ref = pd.DataFrame(data, columns=['constant 1', 'linear increasing 1'], index=dates_3_month)
+
+        y1_partial = [-2/3, -4/3] + y1[2:]
+        y2 = [-1, -10/3] + y2
+        data = np.array([y1_partial, y2]).T
+        dates_3_month = [datetime.datetime(year, m, calendar.monthrange(year, m)[1]) for m in range(1,13)]
+        summary_3_ref_partials = pd.DataFrame(data, columns=['constant 1', 'linear increasing 1'], index=dates_3_month)
+
+        trxs = Transactions()
+        for trx in trxs_list:
+            trxs.add_transaction(trx)
+
+        summary = trxs.summarize_transactions(n_months=1)
+        self.assertTrue(summary.equals(summary_1_ref))
+
+        summary = trxs.summarize_transactions(n_months=3)
+        self.assertTrue(summary.equals(summary_3_ref))
+
+        summary = trxs.summarize_transactions(n_months=3, start=monthdelta(trxs.df['date'].min(), -2, 1))
+        self.assertTrue(summary.equals(summary_3_ref_partials))
