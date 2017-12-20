@@ -13,15 +13,15 @@ class Transaction(object):
     MINT_CSV_DATE_FORMAT = "%m/%d/%Y"
     DEFAULT_DATA = np.array(
         [
-            ("date", 'datetime64'),
-            ("description", 'object'),
-            ("description_original", 'object'),
-            ("amount", 'float64'),
-            ("transaction_type", 'object'),
-            ("category", 'object'),
-            ("account", 'object'),
-            ("labels", 'object'),
-            ("notes", 'object'),
+            ("Date", 'datetime64'),
+            ("Description", 'object'),
+            ("Description Original", 'object'),
+            ("Amount", 'float64'),
+            ("Transaction Type", 'object'),
+            ("Category", 'object'),
+            ("Account", 'object'),
+            ("Labels", 'object'),
+            ("Notes", 'object'),
         ]
     )
 
@@ -48,8 +48,8 @@ class Transaction(object):
         :param other: Another object (must be Transaction-like to be equal)
         :return: Boolean of whether the objects are equal
         """
-        comparible_attributes = ["date", "description", "description_original", "amount", "transaction_type",
-                                 "category", "account", "labels", "notes"]
+        comparible_attributes = ["Date", "Description", "Description Original", "Amount", "Transaction Type",
+                                 "Category", "Account", "Labels", "Notes"]
         equal = True
         for attr in comparible_attributes:
             if getattr(self, attr) == getattr(other, attr):
@@ -81,6 +81,8 @@ class Transaction(object):
             "notes": "A note",
         }
         defaults.update(**kwargs)
+        print("using defaults:")
+        print(defaults)
         return Transaction.from_dict(defaults)
 
     def header(self, separator=', ', fields=None):
@@ -126,26 +128,33 @@ class Transaction(object):
         trx_as_list = [None] * len(fields)
         for i, field in enumerate(fields):
             trx_as_list[i] = getattr(self, field)
-            if field == 'date':
+            if field == 'Date':
                 trx_as_list[i] = trx_as_list[i].strftime(Transaction.MINT_CSV_DATE_FORMAT)
-            if field == 'amount':
+            if field == 'Amount':
                 trx_as_list[i] = str(trx_as_list[i])
 
         return separator.join(trx_as_list)
 
     @classmethod
-    def from_dict(cls, data_dict):
+    def from_dict(cls, data_dict, fill_blanks=False):
         """
         Return a Transaction initialized from a dict containing data for all fields in Transaction.DEFAULT_DATA_MAP
 
         :param data_dict:
+        :param fill_blanks: If True, fill all blank fields with None except date and amount, which is always required
         :return:
         """
         trx = cls()
-        if len(data_dict) != len(trx.fields):
-            raise KeyError("Keys of data_dict ({0}) do not match fields of transaction ({1})".format(str(data_dict.keys()), str(trx.fields)))
+        # if len(data_dict) != len(trx.fields):
+        #     raise KeyError("Keys of data_dict ({0}) do not match fields of transaction ({1})".format(str(data_dict.keys()), str(trx.fields)))
         for k in trx.fields:
-            setattr(trx, k, data_dict[k])
+            try:
+                setattr(trx, k, data_dict[k])
+            except KeyError as e:
+                if fill_blanks:
+                    setattr(trx, k, None)
+                else:
+                    raise KeyError(f"data_dict ({str(data_dict.keys())}) is missing required keys for transaction ({str(trx.fields)})")
         return trx
 
     @classmethod
@@ -181,7 +190,7 @@ class Transaction(object):
 
         :return: Datetime instance
         """
-        return self.data['date'][1]
+        return self.data['Date'][1]
 
     @date.setter
     def date(self, value):
@@ -194,7 +203,7 @@ class Transaction(object):
         if not isinstance(value, datetime.datetime):
             value = datetime.datetime.strptime(value, Transaction.MINT_CSV_DATE_FORMAT)
         # If we get here, we have a datetime.datetime object
-        self.data['date'][1] = value  # No need to make a copy - datetime objects are immutable
+        self.data['Date'][1] = value  # No need to make a copy - datetime objects are immutable
 
     @property
     def amount(self):
@@ -203,7 +212,7 @@ class Transaction(object):
 
         :return: float
         """
-        return self.data['amount'][1]
+        return self.data['Amount'][1]
 
     @amount.setter
     def amount(self, value):
@@ -212,7 +221,7 @@ class Transaction(object):
 
         :return: None
         """
-        self.data['amount'][1] = round(float(value), 2)
+        self.data['Amount'][1] = round(float(value), 2)
 
     @property
     def signed_amount(self):
@@ -224,13 +233,27 @@ class Transaction(object):
         if self.transaction_type == 'debit':
             signed_amount = signed_amount * -1
         return signed_amount
+    # # Not sure if I want to change the setting behaviour here... seems a little confusing and for little real gain
+    # @signed_amount.setter
+    # def signed_amount(self, value):
+    #     """
+    #     Setter for the property signed_amount, which automatically sets transaction_type accordingly
+    #     :param value:
+    #     :return:
+    #     """
+    #     if value >= 0:
+    #         self.transaction_type = 'credit'
+    #         self.amount = value
+    #     else:
+    #         self.transaction_type = 'debit'
+    #         self.amount = -value
 
     @property
     def description(self):
         """
         Getter for property description, accessing data from internal Pandas Series
         """
-        return self.data['description'][1]
+        return self.data['Description'][1]
 
     @description.setter
     def description(self, value):
@@ -240,14 +263,14 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['description'][1] = value
+        self.data['Description'][1] = value
 
     @property
     def description_original(self):
         """
         Getter for property description_original, accessing data from internal Pandas Series
         """
-        return self.data['description_original'][1]
+        return self.data['Description Original'][1]
 
     @description_original.setter
     def description_original(self, value):
@@ -257,14 +280,14 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['description_original'][1] = value
+        self.data['Description Original'][1] = value
 
     @property
     def transaction_type(self):
         """
         Getter for property transaction_type, accessing data from internal Pandas Series
         """
-        return self.data['transaction_type'][1]
+        return self.data['Transaction Type'][1]
 
     @transaction_type.setter
     def transaction_type(self, value):
@@ -274,14 +297,14 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['transaction_type'][1] = value
+        self.data['Transaction Type'][1] = value
 
     @property
     def category(self):
         """
         Getter for property category, accessing data from internal Pandas Series
         """
-        return self.data['category'][1]
+        return self.data['Category'][1]
 
     @category.setter
     def category(self, value):
@@ -291,14 +314,14 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['category'][1] = value
+        self.data['Category'][1] = value
 
     @property
     def account(self):
         """
         Getter for property account, accessing data from internal Pandas Series
         """
-        return self.data['account'][1]
+        return self.data['Account'][1]
 
     @account.setter
     def account(self, value):
@@ -308,14 +331,14 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['account'][1] = value
+        self.data['Account'][1] = value
 
     @property
     def labels(self):
         """
         Getter for property labels, accessing data from internal Pandas Series
         """
-        return self.data['labels'][1]
+        return self.data['Labels'][1]
 
     @labels.setter
     def labels(self, value):
@@ -325,14 +348,14 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['labels'][1] = value
+        self.data['Labels'][1] = value
 
     @property
     def notes(self):
         """
         Getter for property notes, accessing data from internal Pandas Series
         """
-        return self.data['notes'][1]
+        return self.data['Notes'][1]
 
     @notes.setter
     def notes(self, value):
@@ -342,7 +365,7 @@ class Transaction(object):
         :param value:
         :return:
         """
-        self.data['notes'][1] = value
+        self.data['Notes'][1] = value
 
     @property
     def fields(self):

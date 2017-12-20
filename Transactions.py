@@ -1,18 +1,30 @@
-import pandas as pd
-import copy
-from Transaction import Transaction
-import datetime
 import calendar
 import numpy as np
-
-# FEATURE: Continue summarize_transactions.  Add the by categories control (or not implemented error).  Figure out how you want to use it to plot anything useful.  Maybe make a summary table version that compiles multiple of these things?  Should there be a summary table object to handle these?
+import csv
+import pandas as pd
+from pprint import pprint
 
 class Transactions(object):
     """
-    Object to contain and interact with a group of Transaction instances
+    Object to contain and interact with a Mint CSV file of Transactions
     """
 
+    MINT_DTYPES = {
+        "Description": "object",
+        "Original Description": "object",
+        "Amount": "float64",
+        "Transaction Type": "object",
+        "Category": "object",
+        "Account Name": "object",
+        "Labels": "object",
+        "Notes": "object",
+        }
+
+
     def __init__(self):
+        """
+        Initialize instance of class
+        """
         self.df = None
 
     def __len__(self):
@@ -34,9 +46,7 @@ class Transactions(object):
         :return: String
         """
         d = self.df.iloc[i]
-        # print("d before printing:")
-        # print(d)
-        ret = f"{d.name}: {d['date']} | {d['signed_amount']} | {d['description']} | {d['category']} | {d['account']}"
+        ret = f"{d.name}: {d['Date']} | {d['Amount']} | {d['Description']} | {d['Category']}"
         return ret
 
     def __str__(self):
@@ -53,52 +63,17 @@ class Transactions(object):
             string += f"\n{self.transaction_as_str(i)}"
         return string
 
-    def __eq__(self, other):
-        """
-        Compare two Transactions objects.  Returns true if both have the same transactions in the same order.
-
-        Sorts the dataframe column order, so column order does not matter in the match.
-
-        :return: Boolean
-        """
-        print("self: ")
-        print(self.df)
-        print('other: ')
-        print(other.df)
-        return self.df.reindex_axis(sorted(self.df.columns), axis=1).equals(
-               other.df.reindex_axis(sorted(other.df.columns), axis=1))
-
-    def add_transaction(self, trx):
-        """
-        Setter to add a transaction to the object.
-
-        :param trx: An instance of Transaction
-        :return: None
-        """
-        if not isinstance(trx, Transaction):
-            raise TypeError("Invalid type for trx ('{0}').  Must be instance of Transaction".format(type(trx)))
-        # Store all data in the order of trx.fields, with the signed amount appended to the end.
-        # Adding signed_amount could be cleaner...
-        data = trx.to_list() + [trx.signed_amount]
-        columns = trx.fields + ["signed_amount"]
-        df = pd.DataFrame(data=[data], columns=columns)
-
-        if self.df is None:
-            self.df = df
-        else:
-            self.df = self.df.append(df, ignore_index=True)
-
     def slice_by_category(self, categories):
         """
         Return a slice of the Transactions object, including transactions in any of the requested categories.
         :param categories:
         :return:
         """
-        return self.slice_by_keys('category', categories)
+        return self.slice_by_keys('Category', categories)
 
     def slice_by_keys(self, column, keys):
         """
-        Return a slice of the Transaction object, matching cany keys in a given column
+        Return a slice of the Transaction object, matching any keys in a given column
         :param column: The column to slice on
         :param keys: A list of keys to include in the returned Transactions instance
         :return: A new Transactions instance
@@ -109,6 +84,8 @@ class Transactions(object):
         rows = self.df.index == None
 
         # Grab anything that was already matched (True in rows) or matches this cat
+        if not isinstance(keys, list):
+            raise ValueError(f"Input keys is a {type(keys)}, must be list")
         for k in keys:
             rows = (rows) | (self.df.loc[:, column] == k)
 
@@ -136,73 +113,28 @@ class Transactions(object):
         newtrxs = Transactions()
 
         if start is None:
-            start = self.df['date'].min()
+            start = self.df['Date'].min()
         if stop is None:
-            stop = self.df['date'].max()
+            stop = self.df['Date'].max()
 
-        rows = (self.df['date'] >= start) & (self.df['date'] <= stop)
+        rows = (self.df['Date'] >= start) & (self.df['Date'] <= stop)
         df_temp = self.df.loc[rows, :]
 
+        # Do I need a copy here?  never sure with pd.dataframes...
         newtrxs.df = df_temp
         return newtrxs
 
-    def to_csv(self, csv_file):
-        """
-        Export transactions in a Transactions instance to a csv file, optionally with a header.
-
-        :param csv_file: Filename to export
-        :param header: Boolean to set whether the header is included
-        :param data_map: Dictionary that maps data fields to columns in the output file (NOT IMPLEMENTED)
-        :return: None
-        """
-        self.df.to_csv(csv_file, index=False)
-
-    @classmethod
-    def from_csv(cls, csv_file, sep='\s*,\s*'):
-        """
-        Load a set of transactions from a csv file and return as a Transactions instance.
-
-        :param csv_file: Filename of the csv file to read transactions from
-        :param sep: Separator between fields (in Pandas DataFrame read_csv sep format, eg: can be a regular expression)
-        :return: An instance of Transactions
-        """
-        trxs = Transactions()
-        # Parse with Python engine to support regex separator
-        trxs.df = pd.read_csv(csv_file, sep=sep, parse_dates=['date'], dtype={'amount': 'float64'}, engine='python')
-        if len(trxs) > 0:
-            def signed_amount(ds):
-                if ds.transaction_type == 'credit':
-                    return ds.amount
-                elif ds.transaction_type == 'debit':
-                    return -ds.amount
-                else:
-                    raise ValueError(f"Invalid transaction_type {ds.transaction_type}")
+    def sum(self):
+        if isinstance(self.df, pd.DataFrame):
+            return self.df['Amount'].sum()
         else:
-            raise ValueError(f"No data found in csv file {csv_file}")
-        trxs.df['signed_amount'] = trxs.df.apply(signed_amount, axis=1)
-        return trxs
-
-    @classmethod
-    def sample_trxs(cls, n=10, **kwargs):
-        """
-        Returns a sample Transactions with n Transaction objects that have semi-random data.
-
-        :param n: Number of records to include in the returned Transactions instance
-        :param kwargs: Additional arguments will be passed to the Transaction.sample_trx() method, which allows the
-                       user to set some data within the random objects
-
-        :return: A Transactions instance
-        """
-        trxs = cls()
-        for i in range(n):
-            trxs.add_transaction(Transaction.sample_trx(**kwargs))
-        return trxs
+            return 0.0
 
     def summarize_transactions(self, by='categories', n_months=1, start=None, stop=None):
         """
         Return a DataFrame summarizing the rolling average over n_months of spending in each category.
 
-        Indices of the DataFrame are the month/year of the last day in each interval.  Columns are the categories
+        Dates in the returned DataFrame are the month/year of the last day in each interval.  Columns are the categories
         :param by:
         :param n_months:
         :param start: Starting date of the intervals to return (will be rounded to the start of the month)
@@ -212,9 +144,9 @@ class Transactions(object):
         # FEATURE: Should this function return intervals starting at start (so for n_months > 1, this interval would be incomplete) or from start + n_months - 1?
         # Get start and end dates, if not specified.  Use first and last purchase.
         if start is None:
-            start = self.df['date'].min().replace(day=1)
+            start = self.df['Date'].min().replace(day=1)
         if stop is None:
-            stop = self.df['date'].max()
+            stop = self.df['Date'].max()
 
         # Build intervals to examine data over
         intervals = [(start, monthdelta(start, n_months-1))]
@@ -222,27 +154,41 @@ class Transactions(object):
         while intervals[-1][-1] < stop:
             next_start = monthdelta(intervals[-1][0], 1, day=1)
             intervals.append((next_start, monthdelta(next_start, n_months-1)))
-            print('intervals: ')
-            print(intervals)
 
+        categories = self.categories
+        trxs_new = Transactions()
+        # List of data Series to make into DataFrame
         dss = []
-        for interval in intervals:
-            trxs = self.slice_by_date(interval[0], interval[1])
-            data = {}
-            for cat in trxs.categories:
-                data[cat] = trxs.slice_by_category([cat]).sum() / float(n_months)
-            print(data)
-            dss.append(pd.Series(data=data, name=interval[1]))
-            print(dss[-1])
-        df = pd.DataFrame(dss)
-        print(df)
-        return df
 
-    def sum(self):
-        if isinstance(self.df, pd.DataFrame):
-            return self.df['signed_amount'].sum()
-        else:
-            return 0.0
+        for interval in intervals:
+            # Slice to this date range
+            trxs = self.slice_by_date(interval[0], interval[1])
+            # Get average spending for each category in this range
+            for cat in categories:
+                amount = trxs.slice_by_category([cat]).sum() / float(n_months)
+                dss.append(pd.Series({'Date': interval[1], 'Amount': amount, 'Category': cat, 'Description': f"{n_months}-month Average"}))
+        df = pd.DataFrame(dss)
+        trxs_new.df = df
+        return trxs_new
+
+    @classmethod
+    def from_csv(cls, csv_file):
+        """
+        Initialize instance from a Mint-formatted csv file of transactions
+
+        :param csv_file: Transaction file name
+        :return: Instance of Transactions class
+        """
+        # Read csv
+        df = pd.read_csv(csv_file, skipinitialspace = True,  quoting = csv.QUOTE_ALL, parse_dates = ['Date'],
+                         dtype = cls.MINT_DTYPES)
+
+        # Convert Amount column into signed amount
+        df.loc[:, 'Amount'] = df.apply(signed_amount, axis = 1)
+
+        trxs = Transactions()
+        trxs.df = df
+        return trxs
 
     @property
     def categories(self):
@@ -250,11 +196,19 @@ class Transactions(object):
         Returns an ndarray of the categories used in this Transactions object
         """
         try:
-            return self.df['category'].unique()
+            return self.df['Category'].unique()
         except KeyError:
             return np.array([])
 
-# Helpers
+# Helper functions
+def signed_amount(ds):
+    if ds['Transaction Type'] == 'credit':
+        return ds['Amount']
+    elif ds['Transaction Type'] == 'debit':
+        return -ds['Amount']
+    else:
+        raise ValueError(f"Invalid transaction_type {ds.transaction_type}")
+
 def monthdelta(date, delta, day=None):
     """
     Return a date object that is delta months away from date.
