@@ -4,6 +4,8 @@ import csv
 import pandas as pd
 from pprint import pprint
 
+#FEATURE: Change summarize to moving_average.
+
 class Transactions(object):
     """
     Object to contain and interact with a Mint CSV file of Transactions
@@ -130,17 +132,64 @@ class Transactions(object):
         else:
             return 0.0
 
-    def summarize_transactions(self, by='categories', n_months=1, start=None, stop=None):
+    def by_month(self, ignore_blanks = True, start=None, stop=None):
+        """
+        Return a new Transactions file that has a single entry for all spending in each categoriy per month.
+
+        :param ignore_zero: If True, all categories that have zero transactions in a given month will be ignored.  If
+                            False, an entry of $0 spending will be included in the returned Transactions item.
+        :param start: Starting date of the intervals to return (will be rounded to the start of the month)
+                      If None, will start with the oldest transaction
+        :param stop: End date of the intervals to return (will be rounded to the end of the month)
+                      If None, will stop with the most recent transaction
+        :return: Transactions instance
+        """
+        print("TEST")
+        if start is None:
+            start = self.df['Date'].min().replace(day=1)
+        if stop is None:
+            stop = self.df['Date'].max()
+
+        # Build intervals to examine data over
+        # Incrementing by 0 months without other arguments sets to the end of current month
+        intervals = [(start, monthdelta(start, 0))]
+        while intervals[-1][-1] < stop:
+            next_start = monthdelta(intervals[-1][0], 1, day=1)
+            intervals.append((next_start, monthdelta(next_start, 0)))
+
+        categories = self.categories
+        # List of data Series to make into DataFrame
+        dss = []
+
+        for interval in intervals:
+            # Slice to this date range
+            trxs = self.slice_by_date(interval[0], interval[1])
+            # Get average spending for each category in this range
+            for cat in categories:
+                this_cat = trxs.slice_by_category([cat])
+                if len(this_cat) > 0 or ignore_blanks is False:
+                    amount = this_cat.sum()
+                    dss.append(pd.Series({'Date': interval[1], 'Amount': amount, 'Category': cat, 'Description': f"1-month Summation"}))
+        df = pd.DataFrame(dss)
+        trxs_new = Transactions()
+        trxs_new.df = df
+        return trxs_new
+
+    def moving_average(self, by='months', n=1, start=None, stop=None):
         """
         Return a DataFrame summarizing the rolling average over n_months of spending in each category.
 
         Dates in the returned DataFrame are the month/year of the last day in each interval.  Columns are the categories
-        :param by:
-        :param n_months:
+        :param by: Type of increment to average over (currently supports only "months")
+        :param n: Number of increments of 'by' to average over (days, months, years...)
         :param start: Starting date of the intervals to return (will be rounded to the start of the month)
+                      If None, will start with the oldest transaction
         :param stop: End date of the intervals to return (will be rounded to the end of the month)
+                      If None, will stop with the most recent transaction
         :return:
         """
+        if by != 'months':
+            raise NotImplementedError
         # FEATURE: Should this function return intervals starting at start (so for n_months > 1, this interval would be incomplete) or from start + n_months - 1?
         # Get start and end dates, if not specified.  Use first and last purchase.
         if start is None:
@@ -149,11 +198,11 @@ class Transactions(object):
             stop = self.df['Date'].max()
 
         # Build intervals to examine data over
-        intervals = [(start, monthdelta(start, n_months-1))]
+        intervals = [(start, monthdelta(start, n - 1))]
 
         while intervals[-1][-1] < stop:
             next_start = monthdelta(intervals[-1][0], 1, day=1)
-            intervals.append((next_start, monthdelta(next_start, n_months-1)))
+            intervals.append((next_start, monthdelta(next_start, n - 1)))
 
         categories = self.categories
         trxs_new = Transactions()
@@ -165,8 +214,8 @@ class Transactions(object):
             trxs = self.slice_by_date(interval[0], interval[1])
             # Get average spending for each category in this range
             for cat in categories:
-                amount = trxs.slice_by_category([cat]).sum() / float(n_months)
-                dss.append(pd.Series({'Date': interval[1], 'Amount': amount, 'Category': cat, 'Description': f"{n_months}-month Average"}))
+                amount = trxs.slice_by_category([cat]).sum() / float(n)
+                dss.append(pd.Series({'Date': interval[1], 'Amount': amount, 'Category': cat, 'Description': f"{n}-month Average"}))
         df = pd.DataFrame(dss)
         trxs_new.df = df
         return trxs_new
