@@ -132,19 +132,19 @@ class Transactions(object):
         else:
             return 0.0
 
-    def by_month(self, ignore_blanks = True, start=None, stop=None):
+    def by_month(self, ignore_blanks = True, combine_as=False, start=None, stop=None):
         """
         Return a new Transactions file that has a single entry for all spending in each categoriy per month.
 
         :param ignore_zero: If True, all categories that have zero transactions in a given month will be ignored.  If
                             False, an entry of $0 spending will be included in the returned Transactions item.
+        :param combine_as: Sums monthly transactions in all categories into a new category named by combine_as.
         :param start: Starting date of the intervals to return (will be rounded to the start of the month)
                       If None, will start with the oldest transaction
         :param stop: End date of the intervals to return (will be rounded to the end of the month)
                       If None, will stop with the most recent transaction
         :return: Transactions instance
         """
-        print("TEST")
         if start is None:
             start = self.df['Date'].min().replace(day=1)
         if stop is None:
@@ -165,11 +165,19 @@ class Transactions(object):
             # Slice to this date range
             trxs = self.slice_by_date(interval[0], interval[1])
             # Get average spending for each category in this range
+            dss_temp = []
             for cat in categories:
                 this_cat = trxs.slice_by_category([cat])
                 if len(this_cat) > 0 or ignore_blanks is False:
                     amount = this_cat.sum()
-                    dss.append(pd.Series({'Date': interval[1], 'Amount': amount, 'Category': cat, 'Description': f"1-month Summation"}))
+                    dss_temp.append(pd.Series({'Date': interval[1], 'Amount': amount, 'Category': cat, 'Description': f"1-month Summation"}))
+            if combine_as:
+                ds = pd.Series({'Date': interval[1], 'Amount': 0, 'Category': combine_as, 'Description': f"1-month Summation"})
+                for this_ds in dss_temp:
+                    ds.Amount += this_ds.Amount
+                dss.append(ds)
+            else:
+                dss.extend(dss_temp)
         df = pd.DataFrame(dss)
         trxs_new = Transactions()
         trxs_new.df = df

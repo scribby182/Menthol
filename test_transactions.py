@@ -123,6 +123,8 @@ class TestTransactions2(TestCase):
         # Summed monthly
         summarized = trxs.by_month()
 
+        print(summarized)
+
         # Check the length (should be 24:  12 months x 2 categories)
         self.assertEqual(24, len(summarized))
 
@@ -204,6 +206,18 @@ class TestTransactions2(TestCase):
         # Same as above...
         # self.assertTrue(np.all([res, summarized.slice_by_category(['Two Trx']).df.Amount.as_matrix()]))
         self.assertAlmostEqual(res.sum(), summarized.slice_by_category(['Two Trx']).df.Amount.as_matrix().sum())
+
+        # Test summing all transactions from multiple categories into a single new category
+        summarized = trxs.by_month(combine_as='All Trx')
+
+        # Check the length (should be 12:  12 months x 1 category)
+        self.assertEqual(12, len(summarized))
+
+        # Check the results
+        # One Trx
+        res = np.array([i for i in range(1, 13)]) * -1
+        self.assertTrue(np.all([res, summarized.slice_by_category(['All Trx']).df.Amount.as_matrix()]))
+
 
     def test_moving_average(self):
         """
