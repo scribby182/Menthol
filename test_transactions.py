@@ -22,11 +22,19 @@ class TestTransactions2(TestCase):
         """
         trxs = Transactions.from_csv('sample_transactions_1.csv')
 
+        # Positive match
         trxs_2 = trxs.slice_by_category(["Two Trx"])
 
         # Do a few spot checks (not comprehensive...)
         self.assertEqual(len(trxs_2), 24)
         self.assertEqual(trxs_2.df.iloc[6].Amount, -9.0)
+
+        # Negative match
+        trxs_2 = trxs.slice_by_category(["Two Trx"], return_anti_match=True)
+
+        # Do a few spot checks (not comprehensive...)
+        self.assertEqual(len(trxs_2), 12)
+        self.assertEqual(trxs_2.df.iloc[6].Amount, 6.0)
 
     def test_slice_by_date(self):
         """

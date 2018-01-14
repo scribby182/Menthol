@@ -65,19 +65,24 @@ class Transactions(object):
             string += f"\n{self.transaction_as_str(i)}"
         return string
 
-    def slice_by_category(self, categories):
+    def slice_by_category(self, categories, return_anti_match=False):
         """
         Return a slice of the Transactions object, including transactions in any of the requested categories.
         :param categories:
         :return:
         """
-        return self.slice_by_keys('Category', categories)
+        return self.slice_by_keys('Category', categories, return_anti_match=return_anti_match)
 
-    def slice_by_keys(self, column, keys):
+    def slice_by_keys(self, column, keys, return_anti_match=False):
         """
-        Return a slice of the Transaction object, matching any keys in a given column
+        Return a slice of the Transaction object containing only records that match a list of keys in a given column
+
+        Can optionally provide the not-match, where returns only records that DO NOT match anything in keys
+
         :param column: The column to slice on
         :param keys: A list of keys to include in the returned Transactions instance
+        :param return_anti_match: If False, return records that match a key in keys.
+                                 If True, return records that DO NOT match a key in keys.
         :return: A new Transactions instance
         """
         trxs = Transactions()
@@ -90,6 +95,10 @@ class Transactions(object):
             raise ValueError(f"Input keys is a {type(keys)}, must be list")
         for k in keys:
             rows = (rows) | (self.df.loc[:, column] == k)
+
+        # Invert the returned rows if required
+        if return_anti_match:
+            rows = ~rows
 
         trxs.df = self.df.loc[rows]
 
