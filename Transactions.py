@@ -228,6 +228,14 @@ class Transactions(object):
         trxs_new.df = df
         return trxs_new
 
+    def get_daterange(self):
+        """
+        Return a tuple with dates of the first and last transactions in this object, as Datetime objects.
+
+        :return: Tuple of (Datetime, Datetime)
+        """
+        return (self.df['Date'].min(), self.df['Date'].max())
+
     @classmethod
     def from_csv(cls, csv_file):
         """
@@ -280,7 +288,7 @@ def monthdelta(date, delta, day=None):
     if not m:
         m = 12
     if day is None:
-        date = lastday(date.replace(month=m, year=y))
+        date = lastday(date.replace(day=1, month=m, year=y))
     else:
         date = date.replace(day=day, month=m, year=y)
     return date

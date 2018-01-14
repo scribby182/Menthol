@@ -1,4 +1,4 @@
-from Transactions import Transactions
+from Transactions import Transactions, monthdelta
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -23,7 +23,7 @@ class Budget(object):
         else:
             self.name = name
 
-    def plot_budget(self, trxs, moving_average=None, plot_budget=True, color=None, start=None, stop=None):
+    def plot_budget(self, trxs, moving_average=None, plot_budget=True, color=None, start=None, stop=None, savefig=None):
         """
         Plot spending on a budget, optionally including the budget amount and an N-monthly moving average of spending.
 
@@ -42,8 +42,9 @@ class Budget(object):
 
         # Plot monthly spending as bars
         sum_monthly = self.tabulate_transactions(trxs, moving_average=None, start=start, stop=stop)
-        # sum_monthly = trxs.slice_by_date(start=start, stop=stop).slice_by_category(self.categories).by_month(combine_as=self.name)
-        date_range = [sum_monthly.df['Date'].min(), sum_monthly.df['Date'].max()]
+        date_range = sum_monthly.get_daterange()
+        date_range = (monthdelta(date_range[0], delta=-1, day=None), monthdelta(date_range[1], delta=1, day=None))
+
         ax.bar(sum_monthly.df['Date'].as_matrix(), sum_monthly.df['Amount'].as_matrix(), width=10,
                label=f'{self.name}', color=color)
 
@@ -58,11 +59,11 @@ class Budget(object):
             ax.plot(date_range, [self.amount] * 2, color=color, ls=':', label=f'{self.name} Budget (${self.amount})')
         fig.autofmt_xdate(bottom=0.2, rotation=30, ha='right')
 
-        # Debug stuff
-        print("sum_monthly (Transactions)")
-        print(sum_monthly)
-        print('sum_monthly.df')
-        print(sum_monthly.df)
+        if savefig is not None:
+            if savefig is True:
+                savefig = self.name
+            ax.legend()
+            fig.savefig(savefig)
 
         return fig, ax
 
