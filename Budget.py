@@ -35,7 +35,7 @@ class Budget(object):
         Plot spending on a budget, optionally including the budget amount and an N-monthly moving average of spending.
 
         :param trxs: Transactions object to be interpreted using this budget
-        :param moving_average: (Optional) Integer input representing the number of months over which to calculate a
+        :param moving_average: (Optional) List of integers representing the number of months over which to calculate a
                                moving average to be added to the figure.  If None, no moving average is plotted.
         :param color: Optional color of the bars and lines to be plotted
         :param start: Datetime or Date object for the starting date of the intervals to plot (will be rounded to the
@@ -55,15 +55,17 @@ class Budget(object):
         ax.bar(sum_monthly.df['Date'].as_matrix(), sum_monthly.df['Amount'].as_matrix(), width=10,
                label=f'{self.name}', color=color)
 
-        # Plot rolling average, if requested
-        if moving_average is not None:
-            moving = sum_monthly.moving_average(n=moving_average)
-            ax.plot(moving.df['Date'].as_matrix(), moving.df['Amount'].as_matrix(), color=color,
-                    label=f'{self.name} {moving_average}-month average', ls='--')
-
         # Plot budget, if requested
         if plot_budget:
             ax.plot(date_range, [self.amount] * 2, color=color, ls=':', label=f'{self.name} Budget (${self.amount})')
+
+        # Plot rolling average, if requested
+        if moving_average is not None:
+            for ma in moving_average:
+                moving = sum_monthly.moving_average(n=ma)
+                ax.plot(moving.df['Date'].as_matrix(), moving.df['Amount'].as_matrix(), color=color,
+                        label=f'{self.name} {ma}-month average', ls='--')
+
         fig.autofmt_xdate(bottom=0.2, rotation=30, ha='right')
 
         if savefig is not None:
