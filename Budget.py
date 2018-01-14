@@ -23,6 +23,13 @@ class Budget(object):
         else:
             self.name = name
 
+    def __str__(self):
+        """
+        Return a string representation of the Budget
+        :return: String
+        """
+        return f"{self.name:25s} | ${self.amount:<5.0f} | {str(self.categories)}"
+
     def plot_budget(self, trxs, moving_average=None, plot_budget=True, color=None, start=None, stop=None, savefig=None):
         """
         Plot spending on a budget, optionally including the budget amount and an N-monthly moving average of spending.
