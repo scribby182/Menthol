@@ -1,5 +1,8 @@
 from Budget import Budget
-#FEATURE: Should I instantiate Budgets with a transactions object, date range, etc?  That removes most inputs from functions.  But its outside scope, too...
+import os
+import datetime
+
+#FEATURE: Should I instantiate Budgets with a transactions object, date range, etc?  That removes most inputs from functions.  But its outside scope, too...  Could be optionally defined in self.trxs, but only used if input argument is not given during invocation (or could have two separate methods of invokation...)
 
 class Budgets(object):
     """
@@ -34,7 +37,7 @@ class Budgets(object):
         Save PNGs for each Budget to saveloc.
 
         :param trxs: Transactions object to be interpreted using this budget
-        :param moving_average: (Optional) Integer input representing the number of months over which to calculate a
+        :param moving_average: (Optional) List of integers representing the number of months over which to calculate a
                                moving average to be added to the figure.  If None, no moving average is plotted.
         :param start: Datetime or Date object for the starting date of the intervals to plot (will be rounded to the
                       start of the month by Transactions.slice_by_date).  If None, will start with the oldest transaction
@@ -44,12 +47,37 @@ class Budgets(object):
         :param prefix: String to prepend to each saved PNG.  If True, date will be prepended.
         :return: None
         """
-
         if prefix is True:
-            raise NotImplementedError
+            prefix = datetime.datetime.today().strftime("%Y-%m-%d_")
 
-#     def plot_budget(self, trxs, moving_average=None, plot_budget=True, color=None, start=None, stop=None, savefig=None):
+        if not os.path.exists(saveloc):
+            os.makedirs(saveloc)
 
         for b in self.budgets:
             savefig = saveloc + prefix + b.name
             b.plot_budget(trxs, moving_average=moving_average, start=start, stop=stop, savefig=savefig)
+
+    def get_transactions_in_budgets(self, trxs, return_anti_match=False):
+        """
+        Compute a slice of trxs that includes any transactions covered by at least one budget in this Budgets
+
+        :param trxs: Transactions instance to search
+        :param return_anti_match: If True, match everything that IS NOT covered by this Budgets
+        :return: Transactions instance with all applicable transactions
+        """
+        categories = set()
+        for b in self.budgets:
+            for cat in b.categories:
+                categories.add(cat)
+        categories = list(categories)
+
+        return trxs.slice_by_category(categories, return_anti_match=return_anti_match)
+
+    def get_transactions_not_in_budgets(self, trxs):
+        """
+        Compute a slice of trxs that includes any transactions not covered by at least one budget in this Budgets
+
+        :param trxs: Transactions instance to search
+        :return: Transactions instance with all applicable transactions
+        """
+        return self.get_transactions_in_budgets(trxs, return_anti_match=True)
