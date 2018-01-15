@@ -131,8 +131,6 @@ class TestTransactions2(TestCase):
         # Summed monthly
         summarized = trxs.by_month()
 
-        print(summarized)
-
         # Check the length (should be 24:  12 months x 2 categories)
         self.assertEqual(24, len(summarized))
 
@@ -252,16 +250,16 @@ class TestTransactions2(TestCase):
         # Averaged 3-monthly
         summarized = trxs.moving_average(n= 3)
 
-        # Check the length (should be 20: - 10 months x 2 categories)
-        self.assertEqual(20, len(summarized))
+        # Check the length (should be 24: - 12 months x 2 categories)
+        self.assertEqual(24, len(summarized))
 
         # Check the results
         # One Trx
-        res = np.array([i for i in range(2, 12)])
+        res = np.array([1.0/3.0, 1.0] + [i for i in range(2, 12)])
         self.assertTrue(np.all([res, summarized.slice_by_category(['One Trx']).df.Amount.as_matrix()]))
 
         # Two Trx
-        res = np.array([i for i in range(2, 12)]) * -2
+        res = res * -2
         self.assertTrue(np.all([res, summarized.slice_by_category(['Two Trx']).df.Amount.as_matrix()]))
 
         # Use ranges larger than contained in transactions (should pad with 0's for each category)
@@ -292,8 +290,8 @@ class TestTransactions2(TestCase):
         # Averaged 3-monthly
         summarized = trxs.moving_average(start = start, stop = end, n= 3)
 
-        # Check the length (should be 40:  10 months x 2 categories + 6 * 2 before + 4 * 2 after)
-        self.assertEqual(20 + 10 * 2, len(summarized))
+        # Check the length (should be 44:  22 months x 2 categories)
+        self.assertEqual(44, len(summarized))
 
         # Check the results
         # One Trx

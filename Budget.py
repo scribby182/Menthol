@@ -1,6 +1,8 @@
-from Transactions import Transactions, monthdelta
+from Transactions import Transactions, monthdelta, month_intervals
 import matplotlib.pyplot as plt
 import pandas as pd
+from pprint import pprint
+import numpy as np
 
 #FEATURE: Most functions take the same arguments (start, stop, moving average, trxs).  Should budget instances just be set for these?
 
@@ -9,14 +11,23 @@ class Budget(object):
     Budget object for viewing a Transactions object in the context of a budget.
     """
 
-    def __init__(self, amount = None, categories=None, name=None):
+    def __init__(self, amount = None, categories=None, name=None, amount_type="Monthly"):
         """
         Initialize Budget instance
 
         :param amount: Monthly budgeted dollar amount of spending
         :param categories: List of categories to include in budget
+        :param amount_type: Specifies how amount is specified, eg:
+                                Monthly: X dollars per month
+                                Yearly: X dollars per year (converted internally to monthly)
         """
         self.categories = categories
+        if amount_type == "Yearly":
+            amount = amount / 12.0
+        elif amount_type == "Monthly":
+            pass
+        else:
+            raise ValueError("Invalid value for amount_type ('{0}')".format(amount_type))
         self.amount = amount
         if name is None:
             self.name = ", ".join(self.categories)
@@ -28,7 +39,7 @@ class Budget(object):
         Return a string representation of the Budget
         :return: String
         """
-        return f"{self.name:25s} | ${self.amount:<5.0f} | {str(self.categories)}"
+        return f"{self.name:25s} | ${self.amount:<8.2f} | {str(self.categories)}"
 
     def plot_budget(self, trxs, moving_average=None, plot_budget=True, color=None, start=None, stop=None, savefig=None):
         """
@@ -57,12 +68,12 @@ class Budget(object):
 
         # Plot budget, if requested
         if plot_budget:
-            ax.plot(date_range, [self.amount] * 2, color=color, ls=':', label=f'{self.name} Budget (${self.amount})')
+            ax.plot(date_range, [self.amount] * 2, color=color, ls='-', label=f'{self.name} Budget (${self.amount})')
 
         # Plot rolling average, if requested
         if moving_average is not None:
             for ma in moving_average:
-                moving = sum_monthly.moving_average(n=ma)
+                moving = sum_monthly.moving_average(start=start, stop=stop, n=ma)
                 ax.plot(moving.df['Date'].as_matrix(), moving.df['Amount'].as_matrix(), color=color,
                         label=f'{self.name} {ma}-month average', ls='--')
 
@@ -80,7 +91,7 @@ class Budget(object):
         """
         Return a Transactions instance with a summation of all transactions in trxs for this budget, summed by month.
 
-        Optionally apply a moving average to the monthly values returned.
+        Optionally apply a moving average to the monthly values returned, and/or .
 
         :param trxs: The Transactions object to use as the source for data
         :param moving_average: (Optional) Integer number of months over which to apply a moving average to the returned
@@ -93,21 +104,65 @@ class Budget(object):
         """
         # TODO: Need test code
         new_trxs = trxs.slice_by_date(start=start, stop=stop).slice_by_category(self.categories)
-        new_trxs = new_trxs.by_month(combine_as=self.name)
+        new_trxs = new_trxs.by_month(start=start, stop=stop, combine_as=self.name)
         if moving_average is not None:
-            new_trxs = new_trxs.moving_average(n=moving_average)
+            new_trxs = new_trxs.moving_average(start=start, stop=stop, n=moving_average)
         return new_trxs
 
-    def to_ds(self, trxs, moving_average=None, start=None, stop=None):
+    def to_ds(self, trxs, moving_average=None, start=None, stop=None, return_relative=True):
         """
         Make a Pandas Series of this budget, with attributes by date
         :param trxs: See other methods
         :param moving_average: See other methods
         :param start: See other methods
         :param stop: See other methods
+        :param return_relative: If True, return all values relative to their budget (eg: if overspent, <0.  If
+                                underspent, >0)
         :return: Pandas Series
         """
-        trxs = self.tabulate_transactions(trxs, moving_average=moving_average, start=start, stop=stop)
+        if start is None or stop is None:
+            raise NotImplementedError()
+
+        by_month = {}
+        by_month_amounts = {}
+        if moving_average is None:
+            moving_average = [1]
+
+        for ma in moving_average:
+            by_month[ma] = self.tabulate_transactions(trxs, moving_average=ma, start=start, stop=stop)
+            by_month_amounts[ma] = by_month[ma].get_amounts()
+            if return_relative:
+                for i in range(len(by_month_amounts[ma])):
+                    by_month_amounts[ma][i] -= self.amount
+
+        a_key = list(by_month.keys())[0]
+        dates = by_month[a_key].get_dates()
+
+        print('by_month:')
+        for k in sorted(by_month):
+            print('key: ', k)
+            print(by_month[k])
+
+        columns = pd.MultiIndex.from_product([dates, moving_average])
+        print('columns:')
+        print(columns)
+
+        data = []
+        for i in range(len(by_month[a_key])):
+            print('i: ', i)
+            for ma in moving_average:
+                data.append(by_month_amounts[ma][i])
+        data = np.array(data)[None, :]
+        print(data.shape)
+        print('data:')
 
 
-        ds = pd.Series({})
+        # df = pd.DataFrame(np.random.randn(1,50), columns=columns)
+        df = pd.DataFrame(data, index=[self.name + f" ({str(self.amount)})"], columns=columns)
+
+        print(df)
+
+
+        #
+        # trxs = self.tabulate_transactions(trxs, moving_average=moving_average, start=start, stop=stop)
+        # ds = pd.Series({})

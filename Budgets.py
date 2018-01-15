@@ -24,15 +24,32 @@ class Budgets(object):
         """
         self.budgets.append(b)
 
+    def get_budgets(self):
+        """
+        Return a list of budgets in this object
+        :return: List of Budget instances
+        """
+        return self.budgets
+
+    def add_budgets(self, bs, as_copy=True):
+        """
+        Add one or more Budget instances to this object by passing an existing Budgets instance.
+
+        :param bs: Another Budgets instance
+        :return:
+        """
+        for b in bs.get_budgets():
+            self.add_budget(b)
+
     def display(self):
         """
         Display to screen the contents of this object
         :return: None
         """
-        for b in self.budgets:
+        for b in self.get_budgets():
             print(b)
 
-    def plot(self, trxs, moving_average=None, start=None, stop=None, saveloc='./', prefix=''):
+    def plot(self, trxs, moving_average=None, start=None, stop=None, saveloc='./', prefix='', normalize_dates=True):
         """
         Save PNGs for each Budget to saveloc.
 
@@ -45,16 +62,28 @@ class Budgets(object):
                       end of the month by Transactions.slice_by_date).  If None, will stop with the most recent transaction
         :param saveloc: Relative file path to save location
         :param prefix: String to prepend to each saved PNG.  If True, date will be prepended.
+        :param normalize_dates: If True, find the min and max date of the data and make all plots over
+                                that date range
+                                Note: Specifying start and/or stop will override any value set by normalize_dates
         :return: None
         """
+        if normalize_dates:
+            date_range = trxs.get_daterange()
+            if start is None:
+                start = date_range[0]
+            if stop is None:
+                stop = date_range[1]
+
         if prefix is True:
             prefix = datetime.datetime.today().strftime("%Y-%m-%d_")
 
         if not os.path.exists(saveloc):
             os.makedirs(saveloc)
 
-        for b in self.budgets:
+        for b in self.get_budgets():
             savefig = saveloc + prefix + b.name
+            print(f"Saving figure for {b.name} as {savefig}")
+            print(f"Date range: {start} to {stop}")
             b.plot_budget(trxs, moving_average=moving_average, start=start, stop=stop, savefig=savefig)
 
     def get_transactions_in_budgets(self, trxs, return_anti_match=False):
@@ -66,7 +95,7 @@ class Budgets(object):
         :return: Transactions instance with all applicable transactions
         """
         categories = set()
-        for b in self.budgets:
+        for b in self.get_budgets():
             for cat in b.categories:
                 categories.add(cat)
         categories = list(categories)

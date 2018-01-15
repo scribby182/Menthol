@@ -192,7 +192,7 @@ class Transactions(object):
         trxs_new.df = df
         return trxs_new
 
-    def moving_average(self, by='months', n=1, start=None, stop=None):
+    def moving_average(self, by='months', n=1, start=None, stop=None, include_partials=False):
         """
         Return a DataFrame summarizing the rolling average over n_months of spending in each category.
 
@@ -200,9 +200,12 @@ class Transactions(object):
         :param by: Type of increment to average over (currently supports only "months")
         :param n: Number of increments of 'by' to average over (days, months, years...)
         :param start: Starting date of the intervals to return (will be rounded to the start of the month)
+                      Note that this will be the date of the first INTERVAL returned, meaning the first interval will
+                      be (the first day of the (n-1)th month preceeding start, the last day of the month set by start)
                       If None, will start with the oldest transaction
         :param stop: End date of the intervals to return (will be rounded to the end of the month)
                       If None, will stop with the most recent transaction
+        :param include_partials: Generate results even when
         :return:
         """
         if by != 'months':
@@ -210,17 +213,18 @@ class Transactions(object):
         # FEATURE: Should this function return intervals starting at start (so for n_months > 1, this interval would be incomplete) or from start + n_months - 1?
         # Get start and end dates, if not specified.  Use first and last purchase.
         if start is None:
-            start = self.df['Date'].min().replace(day=1)
+            start = self.df['Date'].min()
         if stop is None:
             stop = self.df['Date'].max()
 
-        # Build intervals to examine data over
-        intervals = [(start, monthdelta(start, n - 1))]
+        # Round to start down to day 1 of the n-1th month preceeding start (to make sure the first interval ends at the
+        # end of the month set by start)
+        start = monthdelta(start, -(n-1), day=1)
 
-        while intervals[-1][-1] < stop:
-            next_start = monthdelta(intervals[-1][0], 1, day=1)
-            intervals.append((next_start, monthdelta(next_start, n - 1)))
+        # Round stop to the end of the last month
+        stop = lastday(stop)
 
+        intervals = month_intervals(start, stop, n_months=n)
         categories = self.categories
         trxs_new = Transactions()
         # List of data Series to make into DataFrame
@@ -236,6 +240,20 @@ class Transactions(object):
         df = pd.DataFrame(dss)
         trxs_new.df = df
         return trxs_new
+
+    def get_dates(self):
+        """
+        Return a list of the dates for all transactions, in order of self.df
+        :return: List of Pandas Timestamp instances
+        """
+        return list(self.df.loc[:, 'Date'])
+
+    def get_amounts(self):
+        """
+        Return a list of the amounts for all transactions, in order of self.df
+        :return: List of floats
+        """
+        return list(self.df.loc[:, 'Amount'])
 
     def get_daterange(self):
         """
@@ -311,3 +329,14 @@ def lastday(date):
     """
     d = calendar.monthrange(date.year, date.month)[1]
     return date.replace(day=d)
+
+
+def month_intervals(start, stop, n_months=1):
+    # Build intervals to examine data over
+    intervals = [(start, monthdelta(start, n_months - 1))]
+
+    while intervals[-1][-1] < stop:
+        next_start = monthdelta(intervals[-1][0], 1, day=1)
+        intervals.append((next_start, monthdelta(next_start, n_months - 1)))
+
+    return intervals
