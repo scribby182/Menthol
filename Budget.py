@@ -111,7 +111,7 @@ class Budget(object):
 
     def to_ds(self, trxs, moving_average=None, start=None, stop=None, return_relative=True):
         """
-        Make a Pandas Series of this budget, with attributes by date
+        Make a Pandas Series of this budget, with attributes in a multiindex of Date, Moving Average
         :param trxs: See other methods
         :param moving_average: See other methods
         :param start: See other methods
@@ -120,8 +120,11 @@ class Budget(object):
                                 underspent, >0)
         :return: Pandas Series
         """
-        if start is None or stop is None:
-            raise NotImplementedError()
+        #FEATURE: Need test code
+        if start is not None or stop is not None:
+            raise NotImplementedError("This was bugged but never fixed.  "
+                                      "Most likely you want the same behaviour as using trxs.slice_by_date() first and "
+                                      "then useing this function")
 
         by_month = {}
         by_month_amounts = {}
@@ -138,31 +141,13 @@ class Budget(object):
         a_key = list(by_month.keys())[0]
         dates = by_month[a_key].get_dates()
 
-        print('by_month:')
-        for k in sorted(by_month):
-            print('key: ', k)
-            print(by_month[k])
-
         columns = pd.MultiIndex.from_product([dates, moving_average])
-        print('columns:')
-        print(columns)
 
         data = []
         for i in range(len(by_month[a_key])):
-            print('i: ', i)
             for ma in moving_average:
                 data.append(by_month_amounts[ma][i])
-        data = np.array(data)[None, :]
-        print(data.shape)
-        print('data:')
+        data = np.array(data)
 
-
-        # df = pd.DataFrame(np.random.randn(1,50), columns=columns)
-        df = pd.DataFrame(data, index=[self.name + f" ({str(self.amount)})"], columns=columns)
-
-        print(df)
-
-
-        #
-        # trxs = self.tabulate_transactions(trxs, moving_average=moving_average, start=start, stop=stop)
-        # ds = pd.Series({})
+        ds = pd.Series(data, index=columns, name=self.name + f" ({str(self.amount)})")
+        return ds

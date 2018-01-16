@@ -1,6 +1,7 @@
 from Budget import Budget
 import os
 import datetime
+import pandas as pd
 
 #FEATURE: Should I instantiate Budgets with a transactions object, date range, etc?  That removes most inputs from functions.  But its outside scope, too...  Could be optionally defined in self.trxs, but only used if input argument is not given during invocation (or could have two separate methods of invokation...)
 
@@ -82,8 +83,6 @@ class Budgets(object):
 
         for b in self.get_budgets():
             savefig = saveloc + prefix + b.name
-            print(f"Saving figure for {b.name} as {savefig}")
-            print(f"Date range: {start} to {stop}")
             b.plot_budget(trxs, moving_average=moving_average, start=start, stop=stop, savefig=savefig)
 
     def get_transactions_in_budgets(self, trxs, return_anti_match=False):
@@ -110,3 +109,24 @@ class Budgets(object):
         :return: Transactions instance with all applicable transactions
         """
         return self.get_transactions_in_budgets(trxs, return_anti_match=True)
+
+    def to_df(self, trxs, moving_average=None, return_relative=True):
+        """
+        Returns a DataFrame containing one or more moving average value for each month for all budgets in this instance
+
+        Results are arranged using a multi-index of date and moving average
+
+        :param trxs: Transactions instance
+        :param moving_average: List of one or more moving averages to include.  If None, will use [1] by default
+        :param return_relative: Optionally return values relative to their budget amount (eg: budget.amount=-5 and total
+                                is -11, returned is -6)
+        :return: Dataframe
+        """
+        #TODO: This returns NaN for some fields, I think because the dates in each budget are not the full date range.  Need to address this.
+        if moving_average is None:
+            moving_average = [1]
+        dss = []
+        for b in self.get_budgets():
+            dss.append(b.to_ds(trxs, moving_average=moving_average, return_relative=return_relative))
+        df = pd.DataFrame(dss)
+        return df
