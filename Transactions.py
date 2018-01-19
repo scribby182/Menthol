@@ -4,8 +4,6 @@ import csv
 import pandas as pd
 from pprint import pprint
 
-#FEATURE: Change summarize to moving_average.
-
 class Transactions(object):
     """
     Object to contain and interact with a Mint CSV file of Transactions

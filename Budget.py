@@ -91,7 +91,12 @@ class Budget(object):
         """
         Return a Transactions instance with a summation of all transactions in trxs for this budget, summed by month.
 
-        Optionally apply a moving average to the monthly values returned, and/or .
+        Optionally apply a moving average to the monthly values returned.
+
+        If start and a moving average are both specified, the moving average will be computed using the requested date
+        range PLUS the (moving_average-1) months before the range.  This is done to attempt to get a true n-month moving
+        average when slicing dates (otherwise the first n-1 months will be partial averages and unusually low values).
+        To avoid this behaviour, slice the trxs object by date before passing to tabulate_transactions
 
         :param trxs: The Transactions object to use as the source for data
         :param moving_average: (Optional) Integer number of months over which to apply a moving average to the returned
@@ -102,9 +107,12 @@ class Budget(object):
                       end of the month by Transactions.slice_by_date).  If None, will stop with the most recent transaction
         :return: Transactions instance
         """
-        # TODO: Need test code
-        new_trxs = trxs.slice_by_date(start=start, stop=stop).slice_by_category(self.categories)
-        new_trxs = new_trxs.by_month(start=start, stop=stop, combine_as=self.name)
+        if moving_average is not None and start is not None:
+            data_start = monthdelta(start, -(moving_average - 1), 1)
+        else:
+            data_start = start
+        new_trxs = trxs.slice_by_date(start=data_start, stop=stop).slice_by_category(self.categories)
+        new_trxs = new_trxs.by_month(start=data_start, stop=stop, combine_as=self.name)
         if moving_average is not None:
             new_trxs = new_trxs.moving_average(start=start, stop=stop, n=moving_average)
         return new_trxs
@@ -114,18 +122,14 @@ class Budget(object):
         Make a Pandas Series of this budget, with attributes in a multiindex of Date, Moving Average
         :param trxs: See other methods
         :param moving_average: See other methods
-        :param start: See other methods
-        :param stop: See other methods
+        :param start: (Optional) Start of date range, in date format.  If omitted, range starts at earliest record
+                                 in trxs
+        :param stop: (Optional) End date for range, in date format.   If omitted, range ends at latest record in trxs
         :param return_relative: If True, return all values relative to their budget (eg: if overspent, <0.  If
                                 underspent, >0)
         :return: Pandas Series
         """
         #FEATURE: Need test code
-        if start is not None or stop is not None:
-            raise NotImplementedError("This was bugged but never fixed.  "
-                                      "Most likely you want the same behaviour as using trxs.slice_by_date() first and "
-                                      "then useing this function")
-
         by_month = {}
         by_month_amounts = {}
         if moving_average is None:
