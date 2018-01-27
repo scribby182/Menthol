@@ -11,7 +11,7 @@ class Budget(object):
     Budget object for viewing a Transactions object in the context of a budget.
     """
 
-    def __init__(self, amount = None, categories=None, name=None, amount_type="Monthly"):
+    def __init__(self, amount, categories, name=None, amount_type="Monthly"):
         """
         Initialize Budget instance
 

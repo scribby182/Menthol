@@ -14,11 +14,12 @@ class Budgets(object):
     Object to interact with a groupd of Budget objects
     """
 
-    def __init__(self):
+    def __init__(self, name="Unnamed Budgets"):
         """
         Initialize empty Budgets object
         """
         self.budgets = []
+        self.name = name
 
     def add_budget(self, b):
         """
@@ -36,15 +37,26 @@ class Budgets(object):
         """
         return self.budgets
 
-    def add_budgets(self, bs, as_copy=True):
+    def extend(self, bs, as_copy=True):
         """
-        Add one or more Budget instances to this object by passing an existing Budgets instance.
+        Extend this object by adding all Budget objects from bs to this Budgets instance
 
         :param bs: Another Budgets instance
         :return:
         """
         for b in bs.get_budgets():
             self.add_budget(b)
+
+    def add_budgets(self, bs):
+        """
+        Add a Budgets instance to this object by converting it to a single Budget and storing.
+
+        This method uses the Budgets.to_budget() method to change bs into a Budget
+
+        :param bs: A Budgets instance
+        :return: None
+        """
+        self.add_budget(bs.to_budget())
 
     def display(self):
         """
@@ -192,3 +204,23 @@ class Budgets(object):
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(14)
         fig.savefig(saveloc)
+
+    def to_budget(self, name=None, amount_type="Monthly"):
+        """
+        Returns all of this object's Budget instances combined as a single new Budget
+
+        :return:
+        """
+        #TODO Check for duplicates during merger?  Maybe add this to Add Budget?
+        if name is None:
+            name = self.name
+        categories = []
+        amount = 0
+        budgets = self.get_budgets()
+        for b in budgets:
+            amount += b.amount
+            categories.extend(b.categories)
+            # print(f"Found budget {b.name}: {b.amount} budgeted for categories {b.categories}")
+            # print(f"New summation: {amount} for categories {categories}")
+        return Budget(amount, categories, name=name, amount_type=amount_type)
+
