@@ -21,14 +21,31 @@ class Budgets(object):
         self.budgets = []
         self.name = name
 
-    def add_budget(self, b):
+    def add_budget(self, b, ignore_duplicates=False):
         """
         Add a Budget instance to the Budgets object
 
         :param b: A Budget instance
         :return: None
         """
+        cat_list = self.get_categories(remove_duplicates=True)
+        if ignore_duplicates is False:
+            for cat in b.categories:
+                if cat in cat_list:
+                    raise ValueError("Tried to add duplicate category '{cat}'")
         self.budgets.append(b)
+
+    def get_categories(self, remove_duplicates=False):
+        """
+        Return a list of categories covered by the Budget items in this Budgets
+        :return: List
+        """
+        cat_list = []
+        for b in self.get_budgets():
+            cat_list.extend(b.categories)
+        if remove_duplicates:
+            cat_list = list(set(cat_list))
+        return cat_list
 
     def get_budgets(self):
         """
@@ -58,13 +75,33 @@ class Budgets(object):
         """
         self.add_budget(bs.to_budget())
 
-    def display(self):
+    def to_str(self, amount=True, categories=True, total=True):
+        """
+        Convert Budgets instance to a string summary, optionally including amount and/or categories
+
+        :param amount: Boolean
+        :param categories: Boolean
+        :return: Formatted string of Budgets instance
+        """
+        ret = f"{self.name}"
+        for i, b in enumerate(self.get_budgets()):
+            ret += "\n"
+            ret += b.to_str(amount=amount, categories=categories)
+        if total:
+            total = 0
+            for b in self.get_budgets():
+                total += b.amount
+            line = "-".join([""]*31)
+            ret += f"\n{line}"
+            ret += f"\n{'Total':30s} | ${total:>8.2f}"
+        return ret
+
+    def display(self, amount=True, categories=True):
         """
         Display to screen the contents of this object
         :return: None
         """
-        for b in self.get_budgets():
-            print(b)
+        print(self.to_str(amount=amount, categories=categories))
 
     def plot(self, trxs, moving_average=None, start=None, stop=None, saveloc='./', prefix='', normalize_dates=True):
         """
@@ -160,7 +197,7 @@ class Budgets(object):
         return df
 
     def heatmap_table(self, trxs, moving_average=None, start=None, stop=None, saveloc='./budget', return_relative=True,
-                      vmin=-200, vmax=200):
+                      vmin=-50, vmax=50):
         """
         Saves a Seaborn Heatmap formatted table of the Budgets to a file.
 
@@ -182,6 +219,8 @@ class Budgets(object):
 
         :return: None
         """
+        # FEATURE: From Heather: Coloring might be better if each row was on a relative color scale (by % of budget?)
+        # rather than absolute.  Maybe I could do that by plotting a heatmap of the relative scale, then overlaying text from the absolute scale?
         if start is None:
             start = monthdelta(trxs.get_daterange()[0], +(max(moving_average)-1), 1)
 

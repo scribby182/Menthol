@@ -34,12 +34,24 @@ class Budget(object):
         else:
             self.name = name
 
+    def to_str(self, amount=True, categories=True):
+        """
+        Return a string representation of the Budget, optionally including some pieces
+        :return:
+        """
+        ret = f"{self.name:30s}"
+        if amount:
+            ret += f" | ${self.amount:>8.2f}"
+        if categories:
+            ret += f" | {str(self.categories)}"
+        return ret
+
     def __str__(self):
         """
         Return a string representation of the Budget
         :return: String
         """
-        return f"{self.name:25s} | ${self.amount:<8.2f} | {str(self.categories)}"
+        return self.to_str()
 
     def plot_budget(self, trxs, moving_average=None, plot_budget=True, color=None, start=None, stop=None, savefig=None):
         """
