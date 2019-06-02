@@ -75,7 +75,7 @@ class Budget(object):
         date_range = sum_monthly.get_daterange()
         date_range = (monthdelta(date_range[0], delta=-1, day=None), monthdelta(date_range[1], delta=1, day=None))
 
-        ax.bar(sum_monthly.df['Date'].as_matrix(), sum_monthly.df['Amount'].as_matrix(), width=10,
+        ax.bar(sum_monthly.df['Date'].values, sum_monthly.df['Amount'].values, width=10,
                label=f'{self.name}', color=color)
 
         # Plot budget, if requested
@@ -86,7 +86,7 @@ class Budget(object):
         if moving_average is not None:
             for ma in moving_average:
                 moving = sum_monthly.moving_average(start=start, stop=stop, n=ma)
-                ax.plot(moving.df['Date'].as_matrix(), moving.df['Amount'].as_matrix(), color=color,
+                ax.plot(moving.df['Date'].values, moving.df['Amount'].values, color=color,
                         label=f'{self.name} {ma}-month average', ls='--')
 
         fig.autofmt_xdate(bottom=0.2, rotation=30, ha='right')
